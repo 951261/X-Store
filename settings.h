@@ -9,4 +9,6 @@
 #define DOWNLOAD_DOMAIN             "https://dl2.vimm.net"
 #define SECONDARY_DOWNLOAD_DOMAIN   "https://dl3.vimm.net"
 
+#define FATX_SAFE_FOLDER_NAME_LEN 40
+
 #endif

@@ -1095,6 +1095,43 @@ static SRes extract_file_streaming(const CSzArEx *db, ILookInStreamPtr in_stream
     return res;
 }
 
+
+static int ascii_tolower(int c)
+{
+    if (c >= 'A' && c <= 'Z')
+        return c + ('a' - 'A');
+
+    return c;
+}
+
+static int ends_with_case_insensitive(const char *text, const char *suffix)
+{
+    size_t text_len;
+    size_t suffix_len;
+    size_t offset;
+    size_t i;
+
+    if (!text || !suffix)
+        return 0;
+
+    text_len = strlen(text);
+    suffix_len = strlen(suffix);
+
+    if (suffix_len > text_len)
+        return 0;
+
+    offset = text_len - suffix_len;
+
+    for (i = 0; i < suffix_len; i++) {
+        if (ascii_tolower((unsigned char)text[offset + i]) !=
+            ascii_tolower((unsigned char)suffix[i])) {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
 /* -------------------------------------------------------------------------
  * Main extraction logic
  * ---------------------------------------------------------------------- */
@@ -1209,13 +1246,19 @@ int decompressSevenZipFile(const char *inputFile, const char *outputPath)
             errors++;
             continue;
         }
-        ISzAlloc_Free(&alloc_imp, utf16_name);
 
-        snprintf(full_path, sizeof(full_path), "%s%c%s",
-                 out_dir, PATH_SEP, name_buf);
+        ISzAlloc_Free(&alloc_imp, utf16_name);
 
         is_dir = SzArEx_IsDir(&db, i);
         file_size = SzArEx_GetFileSize(&db, i);
+
+        if (!is_dir && ends_with_case_insensitive(name_buf, ".iso")) {
+            static int isoNum = 0;
+            sprintf(name_buf, "tmp_%d.iso", isoNum);
+            isoNum++;
+        }
+
+        snprintf(full_path, sizeof(full_path), "%s%c%s", out_dir, PATH_SEP, name_buf);
 
         if (is_dir) {
             /* Create directory entry */

@@ -446,7 +446,7 @@ int main()
 
 	struct Settings settings = getSettings();
 
-	MakeSafeFolderName(selectedGameName, safeGameFolderName, sizeof(safeGameFolderName));
+	MakeSafeFolderName(selectedGameName, safeGameFolderName, FATX_SAFE_FOLDER_NAME_LEN);
 	_snprintf(outputFolder, sizeof(outputFolder), "%s\\%s", settings.outputPath, safeGameFolderName);
 	outputFolder[sizeof(outputFolder) - 1] = '\0';
 
