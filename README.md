@@ -36,7 +36,7 @@ Currently, this program supports downloading directly from Vimms Lair. While the
 
 ## Compiling from the source
 
-[See Compiling](COMPILING)
+[See Compiling](COMPILING.md)
 
 ## How the Code Works
 
