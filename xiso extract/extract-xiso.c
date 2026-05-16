@@ -402,7 +402,6 @@ static uint32_t swap32_value(uint32_t value)
 
 #define banner "extract-xiso v" exiso_version " for " exiso_target " - written by in <in@fishtank.com>\n"
 
-
 // #define exiso_log \
 // 	if (!s_quiet) \
 // 	printf
@@ -716,8 +715,6 @@ static xoff_t s_xbox_disc_lseek = 0;
 #pragma mark -
 #endif
 
-
-
 int extractIso(const char *isoPath, const char *pathToExtractTo)
 {
 	struct stat sb;
@@ -737,13 +734,14 @@ int extractIso(const char *isoPath, const char *pathToExtractTo)
 			mem_err();
 	}
 
-	if(pathToExtractTo != NULL) {
+	if (pathToExtractTo != NULL)
+	{
 		path = strdup(pathToExtractTo);
 
 		if ((err = customForceMkdir(path)))
 			mkdir_err(path);
 	}
-	
+
 	++isos;
 	exiso_log("\n");
 	s_total_bytes = s_total_files = 0;
@@ -769,7 +767,6 @@ int extractIso(const char *isoPath, const char *pathToExtractTo)
 			if (!strncmp(tag, XISO_OPTIMIZED_TAG, XISO_OPTIMIZED_TAG_LENGTH_MIN))
 				optimized = true;
 
-				
 			{
 				// the order of the mutually exclusive options here is important, the extract ? k_extract : k_list test *must* be the final comparison
 				if (!err)
@@ -812,6 +809,7 @@ int extractIso(const char *isoPath, const char *pathToExtractTo)
 int log_err(const char *in_file, int in_line, const char *in_format, ...)
 {
 	va_list ap;
+	// va_list ap2;
 	char *format;
 	int ret;
 
@@ -821,12 +819,24 @@ int log_err(const char *in_file, int in_line, const char *in_format, ...)
 	format = (char *)in_format;
 #endif
 
-	if (s_real_quiet)
-		ret = 0;
-	else
+	// if (s_real_quiet)
+	// 	ret = 0;
+	// else
 	{
 		va_start(ap, in_format);
-		ret = vfprintf(stderr, format, ap);
+
+		ret = vfprintf(stdout, format, ap);
+		va_end(ap);
+
+		va_start(ap, in_format);
+
+		FILE *fp = NULL;
+		errno_t err = fopen_s(&fp, LOG_FILE_PATH, "a+");
+		if (fp)
+		{
+			ret = vfprintf(fp, format, ap);
+			fclose(fp);
+		}
 		va_end(ap);
 	}
 
@@ -915,7 +925,6 @@ int verify_xiso(int in_xiso, uint32_t *out_root_dir_sector, uint32_t *out_root_d
 	return err;
 }
 
-
 int decode_xiso(char *in_xiso, char *in_path, modes in_mode, char **out_iso_path, bool in_ll_compat)
 {
 	dir_node_avl *root = nil;
@@ -927,8 +936,9 @@ int decode_xiso(char *in_xiso, char *in_path, modes in_mode, char **out_iso_path
 	if ((xiso = customOpen(in_xiso, READFLAGS, 0)) == -1)
 		open_err(in_xiso);
 
-	if(strstr(in_xiso, ".001") != NULL) { //if split ISO
-		in_xiso[strlen(in_xiso) - 4] = '\0'; //remove .001 part of file name
+	if (strstr(in_xiso, ".001") != NULL)
+	{										 // if split ISO
+		in_xiso[strlen(in_xiso) - 4] = '\0'; // remove .001 part of file name
 	}
 
 	if (!err)
@@ -1024,12 +1034,10 @@ int decode_xiso(char *in_xiso, char *in_path, modes in_mode, char **out_iso_path
 		{
 			sprintf(buf, "%s%s%s%c", in_path ? in_path : "", add_slash && (!in_path) ? PATH_CHAR_STR : "", in_mode != k_list && (!in_path) ? iso_name : "", PATH_CHAR);
 
-
 			if (!err && customLseek(xiso, (xoff_t)root_dir_sect * XISO_SECTOR_SIZE + s_xbox_disc_lseek, SEEK_SET) == -1)
 				seek_err();
 			if (!err)
 				err = traverse_xiso(xiso, nil, (xoff_t)root_dir_sect * XISO_SECTOR_SIZE + s_xbox_disc_lseek, buf, in_mode, nil, in_ll_compat);
-
 
 			free(buf);
 		}
@@ -1322,7 +1330,6 @@ end_traverse:
 #pragma mark -
 #endif
 
-
 avl_result avl_insert(dir_node_avl **in_root, dir_node_avl *in_node)
 {
 	avl_result tmp;
@@ -1507,7 +1514,6 @@ int avl_compare_key(char *in_lhs, char *in_rhs)
 	}
 }
 
-
 #if 0
 #pragma mark -
 #endif
@@ -1580,7 +1586,6 @@ void boyer_moore_done()
 		s_gs_table = nil;
 	}
 }
-
 
 #if 0
 #pragma mark -
@@ -1660,8 +1665,6 @@ int extract_file(int in_xiso, dir_node *in_file, modes in_mode, char *path)
 	return err;
 }
 
-
-
 // Found the CD-ROM layout in ECMA-119.  Now burning software should correctly
 // detect the format of the xiso and burn it correctly without the user having
 // to specify sector sizes and so on.	in 10.29.04
@@ -1674,7 +1677,6 @@ int extract_file(int in_xiso, dir_node *in_file, modes in_mode, char *path)
 
 // write_volume_descriptors() assumes that the iso file block from offset
 // 0x8000 to 0x8808 has been zeroed prior to entry.
-
 
 #if DEBUG
 

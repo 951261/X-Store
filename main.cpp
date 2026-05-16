@@ -426,7 +426,7 @@ int main()
 	if (!CheckGameMounted())
 		dprintf("Warning: Some paths may not be mounted\n");
 
-	dprintf("X Store store 0.1.5 alpha\n");
+	dprintf("X Store store 0.1.6 alpha\n");
 
 	char selectedGameURL[MAX_TEXT_LENGTH] = "";
 	char selectedGameName[MAX_TEXT_LENGTH] = "";
