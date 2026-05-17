@@ -542,7 +542,7 @@ static uint32_t swap32_value(uint32_t value)
 
 #define EMPTY_SUBDIRECTORY ((dir_node_avl *)1)
 
-#define READWRITE_BUFFER_SIZE 0x00200000
+#define READWRITE_BUFFER_SIZE 0x02000000 // Increased for more SPEED and POWER!!!
 
 #define DEBUG_DUMP_DIRECTORY "/Volumes/c/xbox/iso/exiso"
 

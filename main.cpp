@@ -230,7 +230,7 @@ static int DeleteSplitFiles(const char *firstPartFile)
 	return result;
 }
 
-int getGame(std::string URL, const std::string sevenZipFile, const std::string isoFolder, const std::string outputFolder)
+int getGame(std::string URL, const std::string sevenZipFile, const std::string isoFolder, const std::string outputFolder, const int downloadType)
 {
 	std::string backupDomain = SECONDARY_DOWNLOAD_DOMAIN;
 	std::string expectedDomain = DOWNLOAD_DOMAIN;
@@ -239,17 +239,23 @@ int getGame(std::string URL, const std::string sevenZipFile, const std::string i
 	if (httpStatus < 200)
 	{
 		return EXIT_FAILURE;
-	} else if (httpStatus >= 400 && URL.rfind(expectedDomain, 0) == 0) { // page not found. Try different domain. 
+	}
+	else if (httpStatus >= 400 && URL.rfind(expectedDomain, 0) == 0)
+	{ // page not found. Try different domain.
 		URL.replace(0, expectedDomain.length(), backupDomain);
 
 		dprintf("Trying alternate download link\n");
 
-		if(downloadFileHTTPS(URL, sevenZipFile, NULL, NULL, true, dprintf) != 200) {
+		if (downloadFileHTTPS(URL, sevenZipFile, NULL, NULL, true, dprintf) != 200)
+		{
 			return EXIT_FAILURE;
 		}
-	} else if (httpStatus == 200) {
-		
-	} else {
+	}
+	else if (httpStatus == 200)
+	{
+	}
+	else
+	{
 		return EXIT_FAILURE;
 	}
 
@@ -265,6 +271,11 @@ int getGame(std::string URL, const std::string sevenZipFile, const std::string i
 	if (DeleteSplitFiles(sevenZipFile.c_str()) != EXIT_SUCCESS)
 	{
 		dprintf("Warning: failed to delete all 7z parts after 7z extraction\n");
+	}
+
+	if (downloadType == XBLA)
+	{
+		return EXIT_SUCCESS;
 	}
 
 	char isoFile[MAX_TEXT_LENGTH];
@@ -426,53 +437,83 @@ int main()
 	if (!CheckGameMounted())
 		dprintf("Warning: Some paths may not be mounted\n");
 
-	dprintf("X Store store 0.1.6 alpha\n");
-
-	char selectedGameURL[MAX_TEXT_LENGTH] = "";
-	char selectedGameName[MAX_TEXT_LENGTH] = "";
-	char safeGameFolderName[MAX_TEXT_LENGTH] = "";
-	char outputFolder[MAX_TEXT_LENGTH] = "";
-
-	if (showUI(selectedGameURL, sizeof(selectedGameURL), selectedGameName, sizeof(selectedGameName)) == EXIT_SUCCESS)
-	{
-		dprintf("Selected game URL: %s\n", selectedGameURL);
-		dprintf("Selected game: %s\n", selectedGameName);
-	}
-	else
-	{
-		dprintf("Failed to search for a game\n");
-		goto exitFailed;
-	}
-
-	struct Settings settings = getSettings();
-
-	MakeSafeFolderName(selectedGameName, safeGameFolderName, FATX_SAFE_FOLDER_NAME_LEN);
-	_snprintf(outputFolder, sizeof(outputFolder), "%s\\%s", settings.outputPath, safeGameFolderName);
-	outputFolder[sizeof(outputFolder) - 1] = '\0';
-
-	dprintf("Extracting to: %s\n", outputFolder);
-
-	int downloadStatus = getGame(std::string(selectedGameURL), "game:\\tmp.7z.001", "game:\\tmp_output", outputFolder);
-
-	if(downloadStatus == EXIT_SUCCESS) {
-		return EXIT_SUCCESS;
-	}
-
-exitFailed:
-	dprintf("Something went wrong! Press B to exit");
-
 	while (true)
 	{
+
+		dprintf("X Store store 0.1.7 alpha\n");
+
+		char selectedGameURL[MAX_TEXT_LENGTH] = "";
+		char selectedGameName[MAX_TEXT_LENGTH] = "";
+		char safeGameFolderName[MAX_TEXT_LENGTH] = "";
+		char outputFolder[MAX_TEXT_LENGTH] = "";
+
+		const int downloadType = showUI(selectedGameURL, sizeof(selectedGameURL), selectedGameName, sizeof(selectedGameName));
+
+		if (downloadType >= 0)
+		{
+			dprintf("Selected game URL: %s\n", selectedGameURL);
+			dprintf("Selected game: %s\n", selectedGameName);
+		}
+		else
+		{
+			dprintf("Failed to search for a game\n");
+			goto exitFailed;
+		}
+
+		struct Settings settings = getSettings();
+
+		MakeSafeFolderName(selectedGameName, safeGameFolderName, FATX_SAFE_FOLDER_NAME_LEN);
+		_snprintf(outputFolder, sizeof(outputFolder), "%s\\%s", settings.outputPath, safeGameFolderName);
+		outputFolder[sizeof(outputFolder) - 1] = '\0';
+
+		dprintf("Extracting to: %s\n", outputFolder);
+
+		int downloadStatus = -1;
+
+		if (downloadType == XBLA)
+		{
+			downloadStatus = getGame(std::string(selectedGameURL), "game:\\tmp.7z.001", outputFolder, "", downloadType);
+		}
+		else
+		{
+			downloadStatus = getGame(std::string(selectedGameURL), "game:\\tmp.7z.001", "game:\\tmp_output", outputFolder, downloadType);
+		}
+
+		if (downloadStatus == EXIT_SUCCESS)
+		{
+			return EXIT_SUCCESS;
+		}
+
+	exitFailed:
+		dprintf("Something went wrong! Press Y to search again, or B to exit");
+
 		XINPUT_STATE state;
 		ZeroMemory(&state, sizeof(state));
 
-		if (XInputGetState(0, &state) == ERROR_SUCCESS &&
-			(state.Gamepad.wButtons & XINPUT_GAMEPAD_B))
-		{
-			return EXIT_FAILURE;
+		while(XInputGetState(0, &state) != 0) {
+			ZeroMemory(&state, sizeof(state));
 		}
 
-		Sleep(50);
+		Sleep(250);
+
+		while (true)
+		{
+			ZeroMemory(&state, sizeof(state));
+
+			if (XInputGetState(0, &state) == ERROR_SUCCESS)
+			{
+				if (state.Gamepad.wButtons & XINPUT_GAMEPAD_B)
+				{
+					return EXIT_FAILURE;
+				}
+				else if (state.Gamepad.wButtons & XINPUT_GAMEPAD_Y)
+				{
+					break;
+				}
+			}
+
+			Sleep(50);
+		}
 	}
 
 	return EXIT_FAILURE;

@@ -9,18 +9,48 @@
 #include <downloadFile.h>
 #include <settings.h>
 
+#include "ui.h"
 #include "vimms_lair.h"
 
 #define TEXTBUFFER_SIZE (1024 * 10)
 #define HTML_BUFFER_CAPACITY (1024 * 1024 * 4);
 
 
-enum DownloadType {
-    ORIGINAL_XBOX = 1,
-    XBOX_360,
-    XBLA
-};
+static const char *GetDownloadTypeName(enum DownloadType type)
+{
+    switch (type)
+    {
+    case ORIGINAL_XBOX:
+        return "Original Xbox";
 
+    case XBOX_360:
+        return "Xbox 360";
+
+    case XBLA:
+        return "XBLA";
+
+    default:
+        return "Unknown";
+    }
+}
+
+static enum DownloadType GetDownloadTypeFromIndex(int index)
+{
+    switch (index)
+    {
+    case 0:
+        return ORIGINAL_XBOX;
+
+    case 1:
+        return XBOX_360;
+
+    case 2:
+        return XBLA;
+
+    default:
+        return XBLA;
+    }
+}
 
 static std::string UrlEncodeQuery(const std::string &value)
 {
@@ -48,6 +78,73 @@ static std::string UrlEncodeQuery(const std::string &value)
     }
 
     return encoded;
+}
+
+static void RenderDownloadTypeMenu(int selected)
+{
+    char outputTextBuffer[TEXTBUFFER_SIZE] = " ";
+
+    ClearConsole();
+    _snprintf(outputTextBuffer, TEXTBUFFER_SIZE - strlen(outputTextBuffer), "Choose system\n\n");
+
+    for (int i = 0; i < 3; ++i)
+    {
+        enum DownloadType type = GetDownloadTypeFromIndex(i);
+        _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "%c %s\n",
+                i == selected ? '>' : ' ',
+                GetDownloadTypeName(type));
+    }
+
+    _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "\nA: Select   B: Back   D-Pad: Move\n");
+
+    dprintf("%s", outputTextBuffer);
+}
+
+static enum DownloadType ShowDownloadTypeMenu()
+{
+    int selected = 0;
+    WORD previousButtons = 0;
+
+    RenderDownloadTypeMenu(selected);
+
+    while (true)
+    {
+        XINPUT_STATE state;
+        ZeroMemory(&state, sizeof(state));
+
+        if (XInputGetState(0, &state) != ERROR_SUCCESS)
+        {
+            Sleep(50);
+            continue;
+        }
+
+        WORD buttons = state.Gamepad.wButtons;
+        WORD pressed = buttons & ~previousButtons;
+        previousButtons = buttons;
+
+        if (pressed & XINPUT_GAMEPAD_A)
+            return GetDownloadTypeFromIndex(selected);
+
+        if (pressed & XINPUT_GAMEPAD_B)
+            return (enum DownloadType)0;
+
+        if (pressed & XINPUT_GAMEPAD_DPAD_UP)
+            selected--;
+
+        if (pressed & XINPUT_GAMEPAD_DPAD_DOWN)
+            selected++;
+
+        if (selected < 0)
+            selected = 0;
+
+        if (selected >= 3)
+            selected = 2;
+
+        if (pressed & (XINPUT_GAMEPAD_DPAD_UP | XINPUT_GAMEPAD_DPAD_DOWN))
+            RenderDownloadTypeMenu(selected);
+
+        Sleep(50);
+    }
 }
 
 static void RenderSearchResults(const GameList *list, int selected, int scroll)
@@ -345,19 +442,6 @@ DWORD OpenKeyboardToString(
 
 int showUI(char *gameURL, int len, char *gameName, int gameNameLen)
 {
-    // enum DownloadType downloadType = ORIGINAL_XBOX;
-    enum DownloadType downloadType = XBOX_360;
-
-    unsigned long long OUTPUT_BUFFER_SIZE = HTML_BUFFER_CAPACITY;
-
-    char *buffer = (char *)malloc(OUTPUT_BUFFER_SIZE); // 4MB buffer just to be safe
-
-    if (buffer == NULL)
-    {
-        dprintf("Malloc failed\n");
-        return EXIT_FAILURE;
-    }
-
     Sleep(1000);
 
     while (true)
@@ -378,6 +462,22 @@ int showUI(char *gameURL, int len, char *gameName, int gameNameLen)
 
     Sleep(250);
 
+    enum DownloadType downloadType = ShowDownloadTypeMenu();
+    if (!downloadType)
+        return -1;
+
+    Sleep(250);
+
+    unsigned long long OUTPUT_BUFFER_SIZE = HTML_BUFFER_CAPACITY;
+
+    char *buffer = (char *)malloc(OUTPUT_BUFFER_SIZE); // 4MB buffer just to be safe
+
+    if (buffer == NULL)
+    {
+        dprintf("Malloc failed\n");
+        return -1;
+    }
+
     std::string gameSearchString = "";
     DWORD keyboardResult = OpenKeyboardToString(XUSER_INDEX_ANY, &gameSearchString, L"Search for a game", L"Search for a game here", L"GTA VI");
     if (keyboardResult != ERROR_SUCCESS || gameSearchString.empty())
@@ -388,7 +488,7 @@ int showUI(char *gameURL, int len, char *gameName, int gameNameLen)
         }
 
         free(buffer);
-        return EXIT_FAILURE;
+        return -1;
     }
 
     std::cout << "Text output: " << gameSearchString << "\n";
@@ -417,9 +517,9 @@ int showUI(char *gameURL, int len, char *gameName, int gameNameLen)
 
     if (downloadFileHTTPS(searchURL, "", buffer, &OUTPUT_BUFFER_SIZE, false, dprintf) != 200)
     { // downloads into a null terminated buffer
-        dprintf("Download game list failed. Ensure you searched for an actual Xbox 360 game. Ensure your search request was EXACTLY correct. \n");
+        dprintf("Download game list failed. Ensure you searched for an actual game. Ensure your search request was EXACTLY correct. \n");
         free(buffer);
-        return EXIT_FAILURE;
+        return -1;
     }
 
     GameList list = {0};
@@ -431,7 +531,7 @@ int showUI(char *gameURL, int len, char *gameName, int gameNameLen)
         dprintf("Failed to parse HTML.\n");
         free(buffer);
         free_game_list(&list);
-        return 1;
+        return -1;
     }
 
     int selected = ShowSearchResultsUI(&list);
@@ -441,7 +541,7 @@ int showUI(char *gameURL, int len, char *gameName, int gameNameLen)
         dprintf("Game not found. Ensure you searched for a real Xbox 360 game\n\n");
         free_game_list(&list);
         free(buffer);
-        return EXIT_FAILURE;
+        return -1;
     }
 
     std::string selectedURL = "https://vimm.net";
@@ -465,7 +565,7 @@ int showUI(char *gameURL, int len, char *gameName, int gameNameLen)
         dprintf("Download game version list failed\n");
         free_game_list(&list);
         free(buffer);
-        return EXIT_FAILURE;
+        return -1;
     }
 
     MediaList mediaList = {0};
@@ -475,7 +575,7 @@ int showUI(char *gameURL, int len, char *gameName, int gameNameLen)
         free_media_list(&mediaList);
         free_game_list(&list);
         free(buffer);
-        return EXIT_FAILURE;
+        return -1;
     }
 
     int selectedMedia = ShowMediaResultsUI(&mediaList, list.items[selected].name);
@@ -485,7 +585,7 @@ int showUI(char *gameURL, int len, char *gameName, int gameNameLen)
         free_media_list(&mediaList);
         free_game_list(&list);
         free(buffer);
-        return EXIT_FAILURE;
+        return -1;
     }
 
     std::string finalDownloadURL = (DOWNLOAD_DOMAIN "/?mediaId=");
@@ -508,5 +608,5 @@ int showUI(char *gameURL, int len, char *gameName, int gameNameLen)
     free_media_list(&mediaList);
     free_game_list(&list);
     free(buffer);
-    return EXIT_SUCCESS;
+    return downloadType;
 }

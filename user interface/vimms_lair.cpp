@@ -488,26 +488,87 @@ static char *extract_region_from_cell(const char *td_start, const char *td_end)
     return region;
 }
 
-static char *append_region_to_name(const char *name, const char *region)
+static int is_search_result_type(const char *type)
 {
-    if (!region || !*region)
-        return strdup(name);
+    return strcmp(type, "Addon") == 0 ||
+           strcmp(type, "DLC") == 0 ||
+           strcmp(type, "Title Update") == 0 ||
+           strcmp(type, "Xbox Live Arcade") == 0 ||
+           strcmp(type, "Xbox Live Archade") == 0;
+}
 
+static char *extract_type_from_cell(const char *td_start, const char *td_end)
+{
+    const char *p = td_start;
+
+    while ((p = find_case_insensitive_until(p, td_end, "redBorder")) != NULL)
+    {
+        const char *tag_start = p;
+        while (tag_start > td_start && *tag_start != '<')
+            tag_start--;
+
+        if (*tag_start != '<')
+        {
+            p += 9;
+            continue;
+        }
+
+        const char *tag_end = strchr(tag_start, '>');
+        if (!tag_end || tag_end > td_end)
+            break;
+
+        char *title = extract_tag_attribute(tag_start, tag_end, "title");
+        if (title)
+        {
+            html_entity_decode(title);
+            trim_whitespace(title);
+            if (is_search_result_type(title))
+                return title;
+            free(title);
+        }
+
+        p = tag_end + 1;
+    }
+
+    return NULL;
+}
+
+static char *append_type_and_region_to_name(const char *name, const char *type, const char *region)
+{
     size_t name_len = strlen(name);
-    size_t region_len = strlen(region);
-    char *display_name = (char *)malloc(name_len + region_len + 4);
+    size_t type_len = (type && *type) ? strlen(type) : 0;
+    size_t region_len = (region && *region) ? strlen(region) : 0;
+    size_t display_len = name_len + (type_len ? type_len + 3 : 0) + (region_len ? region_len + 3 : 0);
+    char *display_name = (char *)malloc(display_len + 1);
     if (!display_name)
         return NULL;
 
     memcpy(display_name, name, name_len);
-    memcpy(display_name + name_len, " (", 2);
-    memcpy(display_name + name_len + 2, region, region_len);
-    display_name[name_len + 2 + region_len] = ')';
-    display_name[name_len + 3 + region_len] = '\0';
+    size_t offset = name_len;
+
+    if (type_len)
+    {
+        memcpy(display_name + offset, " (", 2);
+        offset += 2;
+        memcpy(display_name + offset, type, type_len);
+        offset += type_len;
+        display_name[offset++] = ')';
+    }
+
+    if (region_len)
+    {
+        memcpy(display_name + offset, " (", 2);
+        offset += 2;
+        memcpy(display_name + offset, region, region_len);
+        offset += region_len;
+        display_name[offset++] = ')';
+    }
+
+    display_name[offset] = '\0';
     return display_name;
 }
 
-static int parse_game_anchor(const char *anchor_start, GameList *out, const char *region)
+static int parse_game_anchor(const char *anchor_start, GameList *out, const char *type, const char *region)
 {
     const char *tag_end = strchr(anchor_start, '>');
     if (!tag_end)
@@ -551,7 +612,7 @@ static int parse_game_anchor(const char *anchor_start, GameList *out, const char
         return 1;
     }
 
-    char *display_name = append_region_to_name(name, region);
+    char *display_name = append_type_and_region_to_name(name, type, region);
     if (!display_name)
     {
         free(name);
@@ -583,6 +644,8 @@ static int parse_result_row(const char *row_start, const char *row_end, GameList
     if (!td_end || td_end > row_end)
         td_end = row_end;
 
+    char *type = extract_type_from_cell(td_start, td_end);
+
     char *region = NULL;
     if (td_end + 5 < row_end)
     {
@@ -594,15 +657,19 @@ static int parse_result_row(const char *row_start, const char *row_end, GameList
                 region_td_end = row_end;
             region = extract_region_from_cell(region_td_start, region_td_end);
             if (!region)
+            {
+                free(type);
                 return 0;
+            }
         }
     }
 
     const char *p = td_start;
     while ((p = find_case_insensitive(p, "<a")) != NULL && p < td_end)
     {
-        if (!parse_game_anchor(p, out, region))
+        if (!parse_game_anchor(p, out, type, region))
         {
+            free(type);
             free(region);
             return 0;
         }
@@ -613,6 +680,7 @@ static int parse_result_row(const char *row_start, const char *row_end, GameList
         p = next + 1;
     }
 
+    free(type);
     free(region);
     return 1;
 }

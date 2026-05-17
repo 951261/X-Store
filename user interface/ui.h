@@ -4,6 +4,12 @@
 #include <string>
 #include <xtl.h>
 
+enum DownloadType {
+    ORIGINAL_XBOX = 1,
+    XBOX_360,
+    XBLA
+};
+
 DWORD OpenKeyboardToString(
     DWORD userIndex,
     std::string *outputString,
