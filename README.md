@@ -22,7 +22,7 @@ The Xbox 360 game store is a piece of homebrew for the Xbox 360 that allows game
 
 ## How to use
 
-1. Download free60-store.zip from the releases
+1. Download X-store.zip from the releases
 2. Extract the .xex and settings.txt files from the ZIP file, and transfer them to your console
 3. Set the output path for games in settings.txt. This will be where games will be extracted to
 4. Launch it using your favourite file manager or dashboard
@@ -36,11 +36,20 @@ Currently, this program supports downloading directly from Vimms Lair. While the
 
 ## Compiling from the source
 
-[See Compiling](COMPILING)
+[See Compiling](COMPILING.md)
 
 ## How the Code Works
 
 [Read the Code Breakdown](how_it_works.md)
+
+## FAQ
+
+* Will this work with BadUpdate/ABadAvatar? Yes, it should work on any homebrew capable Xbox 360 console
+* Why is it taking so long? The Xbox 360 is (by modern standards) an old console. Attempting to download large games directly on the console over encrypted HTTPS is not a simple feat
+* Does this require a stealth server? No, this program only requires an internet connection, no Xbox Live or Stealth server required
+* Does it run in the background? No, you must keep the program open whilst downloading, decompressing and extracting
+* Does this work with Aurora/FSD? Yes, this program will work with any dashboard that can launch homebrew apps.
+* Why is the user interface so bad? I have very little experience with user interface design, and I have been more focused on getting the backend working. If you are skilled enough to make a better UI, I would very much appreciate it. 
 
 ## Credits
 
