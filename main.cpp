@@ -442,7 +442,7 @@ struct Settings getSettings()
 	}
 
 	fclose(fd);
-
+	
 	return settings;
 }
 
@@ -457,7 +457,7 @@ int main()
 	while (true)
 	{
 
-		dprintf("X Store store 0.1.7 alpha\n");
+		dprintf("X Store store 0.1.8 alpha\n");
 
 		char selectedGameURL[MAX_TEXT_LENGTH] = "";
 		char selectedGameName[MAX_TEXT_LENGTH] = "";
