@@ -43,7 +43,7 @@ bool CheckGameMounted()
 			if (mount("game:", "\\Device\\Harddisk0\\Partition1") != 0)
 			{
 				dprintf("GAME_NOT_MOUNTED\n");
-				return false;
+				// return false;
 			}
 		}
 	}
@@ -53,13 +53,16 @@ bool CheckGameMounted()
 		remove("game:\\test.tmp");
 	}
 
+	fd = NULL;
+	fd1= NULL;
+
 	// Check USB0 is mounted
 	if (fopen_s(&fd1, "Usb0:\\test.tmp", "w") != 0)
 	{
 		if (mount("Usb0:", "\\Device\\Mass0") != 0)
 		{
 			dprintf("Warning: USB0 not mounted\n");
-			return false;
+			// return false;
 		}
 	}
 	else
@@ -68,13 +71,16 @@ bool CheckGameMounted()
 		remove("Usb0:\\test.tmp");
 	}
 
+	fd = NULL;
+	fd1= NULL;
+
 	// Check USB1 is mounted
 	if (fopen_s(&fd1, "Usb1:\\test.tmp", "w") != 0)
 	{
 		if (mount("Usb1:", "\\Device\\Mass1") != 0)
 		{
 			dprintf("Warning: USB1 not mounted\n");
-			return false;
+			// return false;
 		}
 	}
 	else
@@ -83,13 +89,16 @@ bool CheckGameMounted()
 		remove("Usb1:\\test.tmp");
 	}
 
+	fd = NULL;
+	fd1= NULL;
+
 	// Check HDD is mounted
 	if (fopen_s(&fd1, "Hdd:\\test.tmp", "w") != 0)
 	{
 		if (mount("Hdd:", "\\Device\\Harddisk0\\Partition1") != 0)
 		{
 			dprintf("Warning: Hdd not mounted\n");
-			return false;
+			// return false;
 		}
 	}
 	else
@@ -387,6 +396,14 @@ static void MakeSafeFolderName(const char *gameName, char *folderName, int folde
 	}
 
 	folderName[out] = '\0';
+
+	for (int i = 0; folderName[i]; i++)
+	{
+		if (folderName[i] == '+')
+		{
+			folderName[i] = ',';
+		}
+	}
 }
 
 struct Settings getSettings()
@@ -490,7 +507,8 @@ int main()
 		XINPUT_STATE state;
 		ZeroMemory(&state, sizeof(state));
 
-		while(XInputGetState(0, &state) != 0) {
+		while (XInputGetState(0, &state) != 0)
+		{
 			ZeroMemory(&state, sizeof(state));
 		}
 
