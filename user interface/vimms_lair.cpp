@@ -1,3 +1,11 @@
+/*
+FILE : vimms_lair.cpp
+PROJECT : xstore
+PROGRAMMER : 951261
+DESCRIPTION : Parses the raw HTML from Vimm's Lair to display search results and download games
+*/
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>

@@ -1,3 +1,11 @@
+/*
+FILE : ui.cpp
+PROJECT : xstore
+PROGRAMMER : 951261
+DESCRIPTION : Manages and displays the UI
+MAIN FUNCTION : showUI
+*/
+
 #include <xtl.h>
 
 #include <stdio.h>

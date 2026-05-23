@@ -1,3 +1,10 @@
+/*
+FILE : dns.cpp
+PROJECT : xstore
+PROGRAMMER : 951261
+DESCRIPTION : Resolves a domain name (example.com) to an IP (384.528.845.259)
+*/
+
 #include <xtl.h>
 #include "XboxTLS.h"
 

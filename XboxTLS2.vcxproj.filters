@@ -138,9 +138,6 @@
     <ClInclude Include="parsing.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="Automation.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="Corona4G.h">
       <Filter>Source Files</Filter>
     </ClInclude>
@@ -1041,9 +1038,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="parsing.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Automation.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Corona4G.c">

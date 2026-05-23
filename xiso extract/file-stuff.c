@@ -1,3 +1,10 @@
+/*
+FILE : file-stuff.c
+PROJECT : xstore
+PROGRAMMER : 951261
+DESCRIPTION : wrappers around several file functions to make .iso.XXX files appear as one file
+*/
+
 #include "file-stuff.h"
 #include <stdio.h>
 #include <io.h>

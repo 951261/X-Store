@@ -4,6 +4,8 @@
 	An xdvdfs .iso (xbox iso) file extraction and creation tool by in <in@fishtank.com>
 		written March 10, 2003
 
+	EDITED by 95126, April 2026
+
 
 	View this file with your tab stops set to 4 spaces or it it will look wacky.
 

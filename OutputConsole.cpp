@@ -1,7 +1,13 @@
+/*
+FILE : OutputConsole.cpp
+PROJECT : xstore
+PROGRAMMER : 951261
+DESCRIPTION : Writes text to the screen. Also writes to debug file
+*/
+
 #include "AtgConsole.h"
 #include "AtgUtil.h"
 #include "OutputConsole.h"
-#include "Automation.h"
 #include <stdio.h>
 
 #define TEXTBUFFER_SIZE (1024 * 10) // 2KB buffer

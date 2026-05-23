@@ -1207,9 +1207,9 @@ int decompressSevenZipFile(const char *inputFile, const char *outputPath)
         goto cleanup;
     }
 
-    printf("Archive : %s\n", archive_path);
-    printf("Files   : %u\n", (unsigned)db.NumFiles);
-    printf("Output  : %s\n\n", out_dir);
+    log_printf("Archive : %s\n", archive_path);
+    log_printf("Files   : %u\n", (unsigned)db.NumFiles);
+    log_printf("Output  : %s\n\n", out_dir);
 
     for (i = 0; i < db.NumFiles; i++) {
         if (!SzArEx_IsDir(&db, i))
@@ -1260,9 +1260,16 @@ int decompressSevenZipFile(const char *inputFile, const char *outputPath)
 
         snprintf(full_path, sizeof(full_path), "%s%c%s", out_dir, PATH_SEP, name_buf);
 
+        char *tmp_path = strrchr(full_path, '\\');
+
+        if(tmp_path != NULL && strlen(tmp_path) > 41) {
+            tmp_path[41] = '\0';
+        }
+
         if (is_dir) {
             /* Create directory entry */
-            printf("  d  %s\n", name_buf);
+            log_printf("  d  %s\n", name_buf);
+
             if (make_dirs(full_path) != 0 && errno != EEXIST) {
                 log_printf( "Warning: cannot create directory '%s': %s\n",
                         full_path, strerror(errno));

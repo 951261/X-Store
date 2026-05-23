@@ -1,3 +1,10 @@
+/*
+FILE : main.cpp
+PROJECT : xstore
+PROGRAMMER : 951261
+DESCRIPTION : READ THE FILE NAME (Haha). This is the main file that coordinates everyting. 
+*/
+
 #include "OutputConsole.h"
 #include "AtgConsole.h"
 #include "AtgInput.h"
@@ -54,7 +61,7 @@ bool CheckGameMounted()
 	}
 
 	fd = NULL;
-	fd1= NULL;
+	fd1 = NULL;
 
 	// Check USB0 is mounted
 	if (fopen_s(&fd1, "Usb0:\\test.tmp", "w") != 0)
@@ -72,7 +79,7 @@ bool CheckGameMounted()
 	}
 
 	fd = NULL;
-	fd1= NULL;
+	fd1 = NULL;
 
 	// Check USB1 is mounted
 	if (fopen_s(&fd1, "Usb1:\\test.tmp", "w") != 0)
@@ -90,7 +97,7 @@ bool CheckGameMounted()
 	}
 
 	fd = NULL;
-	fd1= NULL;
+	fd1 = NULL;
 
 	// Check HDD is mounted
 	if (fopen_s(&fd1, "Hdd:\\test.tmp", "w") != 0)
@@ -109,7 +116,7 @@ bool CheckGameMounted()
 	return true;
 }
 
-int findIso(const char *folder, char *isoFile, int len)
+int findIso(const char *folder, char *isoFile, int len, const char *prefix)
 {
 	// Source - https://stackoverflow.com/a/612176
 	// Posted by Peter Parker, modified by community. See post 'Timeline' for change history
@@ -127,7 +134,7 @@ int findIso(const char *folder, char *isoFile, int len)
 			std::cout << ent->d_name << "\n";
 			int nameLength = strlen(ent->d_name);
 
-			if (strlen(ent->d_name) > strlen(".iso.001") && strcmp(&(ent->d_name[nameLength - strlen(".iso.001")]), ".iso.001") == 0)
+			if (strlen(ent->d_name) > strlen(prefix) && strcmp(&(ent->d_name[nameLength - strlen(prefix)]), prefix) == 0)
 			{ // identical strings
 				strncpy(isoFile, ent->d_name, len);
 				closedir(dir);
@@ -244,6 +251,8 @@ int getGame(std::string URL, const std::string sevenZipFile, const std::string i
 	std::string backupDomain = SECONDARY_DOWNLOAD_DOMAIN;
 	std::string expectedDomain = DOWNLOAD_DOMAIN;
 
+	// goto skipDownloadAndExtract;
+
 	int httpStatus = downloadFileHTTPS(URL, sevenZipFile, NULL, NULL, true, dprintf);
 	if (httpStatus < 200)
 	{
@@ -268,9 +277,11 @@ int getGame(std::string URL, const std::string sevenZipFile, const std::string i
 		return EXIT_FAILURE;
 	}
 
-	customForceMkdir(isoFolder.c_str());
+	if (customForceMkdir(isoFolder.c_str()) != EXIT_SUCCESS) {
+		dprintf("Warning, failed to create %s \n", isoFolder.c_str());
+	}
 
-	std::cout << "Extracting " << sevenZipFile << "\n"; // Debug
+	dprintf("Download complete, beginning extraction of %s \n", sevenZipFile);
 
 	if (decompressSevenZipFile(sevenZipFile.c_str(), isoFolder.c_str()) == EXIT_FAILURE)
 	{
@@ -282,6 +293,8 @@ int getGame(std::string URL, const std::string sevenZipFile, const std::string i
 		dprintf("Warning: failed to delete all 7z parts after 7z extraction\n");
 	}
 
+	// skipDownloadAndExtract:
+
 	if (downloadType == XBLA)
 	{
 		return EXIT_SUCCESS;
@@ -290,10 +303,13 @@ int getGame(std::string URL, const std::string sevenZipFile, const std::string i
 	char isoFile[MAX_TEXT_LENGTH];
 	char temp[MAX_TEXT_LENGTH];
 
-	if (findIso(isoFolder.c_str(), isoFile, sizeof(isoFile)) != EXIT_SUCCESS)
+	if (findIso(isoFolder.c_str(), isoFile, sizeof(isoFile), ".iso.001") != EXIT_SUCCESS)
 	{
-		dprintf("Failed to find .iso.001 file in %s\n", isoFolder.c_str());
-		return EXIT_FAILURE;
+		if (findIso(isoFolder.c_str(), isoFile, sizeof(isoFile), ".iso") != EXIT_SUCCESS)
+		{
+			dprintf("Failed to find .iso.001 or .iso file in %s\n", isoFolder.c_str());
+			return EXIT_FAILURE;
+		}
 	}
 
 	strncpy(temp, isoFolder.c_str(), MAX_TEXT_LENGTH);
@@ -306,7 +322,9 @@ int getGame(std::string URL, const std::string sevenZipFile, const std::string i
 
 	strcat(temp, isoFile);
 
-	customForceMkdir(outputFolder.c_str());
+	if (customForceMkdir(outputFolder.c_str()) != EXIT_SUCCESS) {
+		dprintf("Warning! Failed to create %s \n", outputFolder.c_str());
+	}
 
 	if (extractIso(temp, outputFolder.c_str()) != 0)
 	{
@@ -318,7 +336,7 @@ int getGame(std::string URL, const std::string sevenZipFile, const std::string i
 	// 	dprintf("Warning: failed to delete all ISO parts after ISO extraction\n");
 	// }
 
-	char isoFolderToDelete[250];
+	char isoFolderToDelete[MAX_TEXT_LENGTH];
 	strncpy(isoFolderToDelete, isoFolder.c_str(), sizeof(isoFolderToDelete) - 2);
 	isoFolderToDelete[sizeof(isoFolderToDelete) - 2] = '\0';
 
@@ -344,7 +362,7 @@ int getGame(std::string URL, const std::string sevenZipFile, const std::string i
 static bool IsInvalidFolderChar(char c)
 {
 	return c == '<' || c == '>' || c == ':' || c == '"' ||
-		   c == '/' || c == '\\' || c == '|' || c == '?' || c == '*';
+		   c == '/' || c == '\\' || c == '|' || c == '?' || c == '*' || c == '+' || c == ',' || c == '=';
 }
 
 static void MakeSafeFolderName(const char *gameName, char *folderName, int folderNameLen)
@@ -396,14 +414,6 @@ static void MakeSafeFolderName(const char *gameName, char *folderName, int folde
 	}
 
 	folderName[out] = '\0';
-
-	for (int i = 0; folderName[i]; i++)
-	{
-		if (folderName[i] == '+')
-		{
-			folderName[i] = ',';
-		}
-	}
 }
 
 struct Settings getSettings()
@@ -442,7 +452,7 @@ struct Settings getSettings()
 	}
 
 	fclose(fd);
-	
+
 	return settings;
 }
 
@@ -457,7 +467,7 @@ int main()
 	while (true)
 	{
 
-		dprintf("X Store store 0.1.8 alpha\n");
+		dprintf("X Store store 0.2.0 beta\n");
 
 		char selectedGameURL[MAX_TEXT_LENGTH] = "";
 		char selectedGameName[MAX_TEXT_LENGTH] = "";

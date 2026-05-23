@@ -1,3 +1,10 @@
+/*
+FILE : parsing.cpp
+PROJECT : xstore
+PROGRAMMER : 951261
+DESCRIPTION : parses HTTP headers
+*/
+
 #include "parsing.h"
 
 #include <string.h>

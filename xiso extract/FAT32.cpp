@@ -1,3 +1,10 @@
+/*
+FILE : FAT32.cpp
+PROJECT : xstore
+PROGRAMMER : 951261
+DESCRIPTION : This is a FAT32 driver. For some strange reason, creating 10-12 character file names can sometimes cause issues
+*/
+
 #include "FAT32.h"
 
 #include <xtl.h>

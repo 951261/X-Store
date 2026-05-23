@@ -1,3 +1,10 @@
+/*
+FILE : Corona4G.c
+PROJECT : xstore
+PROGRAMMER : 951261
+DESCRIPTION : Modified from Simple 360 NAND Flasher. Only useful function is to mount a drive (USB, HDD, etc...)
+*/
+
 #include <xtl.h>
 #include <stdint.h>
 #include <stdio.h>

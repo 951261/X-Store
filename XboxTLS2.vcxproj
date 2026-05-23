@@ -277,7 +277,6 @@
     <None Include="SSL\x509\x509_minimal.t0" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Automation.h" />
     <ClInclude Include="Corona4G.h" />
     <ClInclude Include="Debug.h" />
     <ClInclude Include="dns.h" />
@@ -303,7 +302,6 @@
     <ClInclude Include="XboxTLS.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Automation.cpp" />
     <ClCompile Include="Corona4G.c" />
     <ClCompile Include="Debug.cpp" />
     <ClCompile Include="dns.cpp" />

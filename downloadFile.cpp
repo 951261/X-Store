@@ -1,3 +1,10 @@
+/*
+FILE : downloadFile.cpp
+PROJECT : xstore
+PROGRAMMER : 951261
+DESCRIPTION : Downloads a file. If the file is larger than 4GB, it splits it into multiple parts. 
+*/
+
 /**
  * ----------------------------------------------------------------------------
  * XboxTLS Example Client
