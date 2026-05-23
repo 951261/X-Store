@@ -58,6 +58,7 @@
 #define kProgressBarWidth 30
 #define kFat32SplitThreshold ((UInt64)0xF0000000)
 #define kMaxPathBuffer 8192
+#define kMaxFatxNameLen 40
 
 
 #define snprintf _snprintf
@@ -389,6 +390,7 @@ static int utf16_to_path(const UInt16 *src, char *dst, size_t dst_size)
 {
     size_t i;
     size_t out = 0;
+    size_t component_len = 0;
 
     for (i = 0; src[i] != 0 && out + 4 < dst_size; i++) {
         UInt16 c = src[i];
@@ -396,8 +398,14 @@ static int utf16_to_path(const UInt16 *src, char *dst, size_t dst_size)
         /* Replace '/' and '\' with the OS path separator */
         if (c == '/' || c == '\\') {
             dst[out++] = PATH_SEP;
+            component_len = 0;
             continue;
         }
+
+        if (component_len >= kMaxFatxNameLen)
+            continue;
+
+        component_len++;
 
         /* Encode to UTF-8 */
         if (c < 0x80) {
@@ -1259,12 +1267,6 @@ int decompressSevenZipFile(const char *inputFile, const char *outputPath)
         }
 
         snprintf(full_path, sizeof(full_path), "%s%c%s", out_dir, PATH_SEP, name_buf);
-
-        char *tmp_path = strrchr(full_path, '\\');
-
-        if(tmp_path != NULL && strlen(tmp_path) > 41) {
-            tmp_path[41] = '\0';
-        }
 
         if (is_dir) {
             /* Create directory entry */
