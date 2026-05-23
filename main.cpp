@@ -281,7 +281,7 @@ int getGame(std::string URL, const std::string sevenZipFile, const std::string i
 		dprintf("Warning, failed to create %s \n", isoFolder.c_str());
 	}
 
-	dprintf("Download complete, beginning extraction of %s \n", sevenZipFile);
+	dprintf("Download complete, beginning extraction of %s \n", sevenZipFile.c_str());
 
 	if (decompressSevenZipFile(sevenZipFile.c_str(), isoFolder.c_str()) == EXIT_FAILURE)
 	{

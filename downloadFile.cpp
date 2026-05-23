@@ -53,6 +53,7 @@ DESCRIPTION : Downloads a file. If the file is larger than 4GB, it splits it int
 #include "XboxTLS.h"
 #include "dns.h"
 #include "parsing.h"
+#include "OutputConsole.h"
 
 #include <xtl.h>
 #include "goDaddyRootCA.h"
@@ -61,8 +62,8 @@ DESCRIPTION : Downloads a file. If the file is larger than 4GB, it splits it int
 #include <string.h>
 #include <time.h>
 
-#define ERROR(s) (printf("\nERROR: %s\n", s))
-#define DEBUG_PRINT(s) (printf(s));
+#define ERROR(s) (log_printf("\nERROR: %s\n", s))
+#define DEBUG_PRINT(s) (log_printf(s));
 
 unsigned long long outputBufferPointer = 0;
 
