@@ -283,7 +283,7 @@ int getGame(std::string URL, const std::string sevenZipFile, const std::string i
 
 	dprintf("Download complete, beginning extraction of %s \n", sevenZipFile.c_str());
 
-	if (decompressSevenZipFile(sevenZipFile.c_str(), isoFolder.c_str()) == EXIT_FAILURE)
+	if (decompressSevenZipFile(sevenZipFile.c_str(), isoFolder.c_str(), (downloadType == XBLA) ) == EXIT_FAILURE)
 	{
 		return EXIT_FAILURE;
 	}
@@ -467,7 +467,7 @@ int main()
 	while (true)
 	{
 
-		dprintf("X Store store 0.2.0 beta\n");
+		dprintf("X Store store 0.2.2 beta\n");
 
 		char selectedGameURL[MAX_TEXT_LENGTH] = "";
 		char selectedGameName[MAX_TEXT_LENGTH] = "";

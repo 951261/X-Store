@@ -386,7 +386,7 @@ static int make_dirs(const char *path)
  * dst must be at least dst_size bytes.
  * Returns 0 on success.
  */
-static int utf16_to_path(const UInt16 *src, char *dst, size_t dst_size)
+static int utf16_to_path(const UInt16 *src, char *dst, size_t dst_size, bool isXBLA)
 {
     size_t i;
     size_t out = 0;
@@ -402,7 +402,7 @@ static int utf16_to_path(const UInt16 *src, char *dst, size_t dst_size)
             continue;
         }
 
-        if (component_len >= kMaxFatxNameLen)
+        if (component_len >= kMaxFatxNameLen && isXBLA == true) //truncate file and folder names IF it is an XBLA game
             continue;
 
         component_len++;
@@ -1144,7 +1144,7 @@ static int ends_with_case_insensitive(const char *text, const char *suffix)
  * Main extraction logic
  * ---------------------------------------------------------------------- */
 
-int decompressSevenZipFile(const char *inputFile, const char *outputPath)
+int decompressSevenZipFile(const char *inputFile, const char *outputPath, const bool isXBLA)
 {
     const char *archive_path;
     const char *out_dir;
@@ -1247,7 +1247,7 @@ int decompressSevenZipFile(const char *inputFile, const char *outputPath)
         }
 
         SzArEx_GetFileNameUtf16(&db, i, utf16_name);
-        if (utf16_to_path(utf16_name, name_buf, sizeof(name_buf)) != 0) {
+        if (utf16_to_path(utf16_name, name_buf, sizeof(name_buf), isXBLA) != 0) {
             log_printf( "Error: file name is too long to extract entry %u\n",
                     (unsigned)i);
             ISzAlloc_Free(&alloc_imp, utf16_name);
