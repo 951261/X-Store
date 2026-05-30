@@ -18,6 +18,7 @@ DESCRIPTION : wrappers around several file functions to make .iso.XXX files appe
 
 #include "FAT32.h"
 #include <settings.h>
+#include <OutputConsole.h>
 
 #ifdef WIN32
 // #include <io.h>
@@ -820,3 +821,42 @@ int deleteDirectory(const char *directoryToDelete, const size_t len)
 
     return result;
 }
+
+
+
+int findFile(const char *folder, char *isoFile, int len, const char *suffix)
+{
+	// Source - https://stackoverflow.com/a/612176
+	// Posted by Peter Parker, modified by community. See post 'Timeline' for change history
+	// Retrieved 2026-04-26, License - CC BY-SA 4.0
+
+	DIR *dir;
+	struct dirent *ent;
+	if ((dir = opendir(folder)) != NULL)
+	{
+		/* print all the files and directories within directory */
+		while ((ent = readdir(dir)) != NULL)
+		{
+			// std::cout << ent->d_name << "\n";
+			int nameLength = strlen(ent->d_name);
+
+			if (strlen(ent->d_name) > strlen(suffix) && strcmp(&(ent->d_name[nameLength - strlen(suffix)]), suffix) == 0)
+			{ // identical strings
+				strncpy(isoFile, ent->d_name, len);
+				closedir(dir);
+				return (strlen(ent->d_name) < len) ? EXIT_SUCCESS : EXIT_FAILURE;
+			}
+		}
+		closedir(dir);
+	}
+	else
+	{
+		/* could not open directory */
+		log_printf("Directory not found\n");
+		perror("");
+		return EXIT_FAILURE;
+	}
+	return -1;
+}
+
+

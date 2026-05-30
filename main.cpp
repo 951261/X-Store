@@ -116,43 +116,6 @@ bool CheckGameMounted()
 	return true;
 }
 
-int findIso(const char *folder, char *isoFile, int len, const char *prefix)
-{
-	// Source - https://stackoverflow.com/a/612176
-	// Posted by Peter Parker, modified by community. See post 'Timeline' for change history
-	// Retrieved 2026-04-26, License - CC BY-SA 4.0
-
-	std::cout << "\nSearching for ISO in " << folder << "\n";
-
-	DIR *dir;
-	struct dirent *ent;
-	if ((dir = opendir(folder)) != NULL)
-	{
-		/* print all the files and directories within directory */
-		while ((ent = readdir(dir)) != NULL)
-		{
-			std::cout << ent->d_name << "\n";
-			int nameLength = strlen(ent->d_name);
-
-			if (strlen(ent->d_name) > strlen(prefix) && strcmp(&(ent->d_name[nameLength - strlen(prefix)]), prefix) == 0)
-			{ // identical strings
-				strncpy(isoFile, ent->d_name, len);
-				closedir(dir);
-				return (strlen(ent->d_name) < len) ? EXIT_SUCCESS : EXIT_FAILURE;
-			}
-		}
-		closedir(dir);
-	}
-	else
-	{
-		/* could not open directory */
-		std::cout << "Directory not found\n";
-		perror("");
-		return EXIT_FAILURE;
-	}
-	return -1;
-}
-
 static bool IsDigitString(const char *text)
 {
 	if (!text || !*text)
@@ -303,9 +266,9 @@ int getGame(std::string URL, const std::string sevenZipFile, const std::string i
 	char isoFile[MAX_TEXT_LENGTH];
 	char temp[MAX_TEXT_LENGTH];
 
-	if (findIso(isoFolder.c_str(), isoFile, sizeof(isoFile), ".iso.001") != EXIT_SUCCESS)
+	if (findFile(isoFolder.c_str(), isoFile, sizeof(isoFile), ".iso.001") != EXIT_SUCCESS)
 	{
-		if (findIso(isoFolder.c_str(), isoFile, sizeof(isoFile), ".iso") != EXIT_SUCCESS)
+		if (findFile(isoFolder.c_str(), isoFile, sizeof(isoFile), ".iso") != EXIT_SUCCESS)
 		{
 			dprintf("Failed to find .iso.001 or .iso file in %s\n", isoFolder.c_str());
 			return EXIT_FAILURE;
@@ -467,7 +430,7 @@ int main()
 	while (true)
 	{
 
-		dprintf("X Store store 0.2.2 beta\n");
+		dprintf("X Store store " CURRENT_VERSION " beta\n");
 
 		char selectedGameURL[MAX_TEXT_LENGTH] = "";
 		char selectedGameName[MAX_TEXT_LENGTH] = "";

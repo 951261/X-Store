@@ -16,6 +16,7 @@ MAIN FUNCTION : showUI
 #include <OutputConsole.h>
 #include <downloadFile.h>
 #include <settings.h>
+#include <updater.h>
 
 #include "ui.h"
 #include "vimms_lair.h"
@@ -37,6 +38,9 @@ static const char *GetDownloadTypeName(enum DownloadType type)
     case XBLA:
         return "XBLA";
 
+    case AUTO_UPDATE:
+        return "Update X-Store";
+
     default:
         return "Unknown";
     }
@@ -54,6 +58,9 @@ static enum DownloadType GetDownloadTypeFromIndex(int index)
 
     case 2:
         return XBLA;
+
+    case 3:
+        return AUTO_UPDATE;
 
     default:
         return XBLA;
@@ -93,9 +100,9 @@ static void RenderDownloadTypeMenu(int selected)
     char outputTextBuffer[TEXTBUFFER_SIZE] = " ";
 
     ClearConsole();
-    _snprintf(outputTextBuffer, TEXTBUFFER_SIZE - strlen(outputTextBuffer), "Choose system\n\n");
+    _snprintf(outputTextBuffer, TEXTBUFFER_SIZE - strlen(outputTextBuffer), "Select Download Type\n\n");
 
-    for (int i = 0; i < 3; ++i)
+    for (int i = 0; i < 4; ++i)
     {
         enum DownloadType type = GetDownloadTypeFromIndex(i);
         _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "%c %s\n",
@@ -145,8 +152,8 @@ static enum DownloadType ShowDownloadTypeMenu()
         if (selected < 0)
             selected = 0;
 
-        if (selected >= 3)
-            selected = 2;
+        if (selected >= 4)
+            selected = 3;
 
         if (pressed & (XINPUT_GAMEPAD_DPAD_UP | XINPUT_GAMEPAD_DPAD_DOWN))
             RenderDownloadTypeMenu(selected);
@@ -483,6 +490,13 @@ int showUI(char *gameURL, int len, char *gameName, int gameNameLen)
     if (buffer == NULL)
     {
         dprintf("Malloc failed\n");
+        return -1;
+    }
+
+    if(downloadType == AUTO_UPDATE) {
+        if(runUpdate() != EXIT_FAILURE) {
+            dprintf("Update Succeeded! \n");
+        }
         return -1;
     }
 

@@ -210,7 +210,7 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <PreprocessorDefinitions>NDEBUG;_XBOX</PreprocessorDefinitions>
       <CompileAs>Default</CompileAs>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)\xiso extract;$(ProjectDir)\user interface;$(ProjectDir)\7zip;$(ProjectDir)\Common;$(ProjectDir)\SSL;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)\xiso extract;$(ProjectDir)\user interface;$(ProjectDir)\7zip;$(ProjectDir)\Common;$(ProjectDir)\SSL;$(ProjectDir)\updater;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <WholeProgramOptimization>true</WholeProgramOptimization>
     </ClCompile>
     <Link>
@@ -281,6 +281,7 @@
     <ClInclude Include="Debug.h" />
     <ClInclude Include="dns.h" />
     <ClInclude Include="downloadFile.h" />
+    <ClInclude Include="githubCert.h" />
     <ClInclude Include="goDaddyRootCA.h" />
     <ClInclude Include="OutputConsole.h" />
     <ClInclude Include="parsing.h" />
@@ -635,6 +636,12 @@
     </ProjectReference>
     <ProjectReference Include="Common\AtgFramework2010.vcxproj">
       <Project>{91d208a6-9936-47fd-9659-67205c3eb0ab}</Project>
+    </ProjectReference>
+    <ProjectReference Include="miniz\miniz.vcxproj">
+      <Project>{a1c7c233-2c81-4a98-8ef5-7be506cc8644}</Project>
+    </ProjectReference>
+    <ProjectReference Include="updater\updater.vcxproj">
+      <Project>{c3e7a040-a72b-41a5-a9ae-aaba80f5dc4c}</Project>
     </ProjectReference>
     <ProjectReference Include="user interface\user interface.vcxproj">
       <Project>{3b1d1e65-4a59-40df-a0cf-b16b5cb54885}</Project>

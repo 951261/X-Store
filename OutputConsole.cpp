@@ -51,6 +51,8 @@ void  __cdecl dprintf(const char* strFormat, ...)
 	}
 #else
 
+	printf("%s", buf);
+
 	FILE* fp = NULL;
     errno_t err = fopen_s(&fp, LOG_FILE_PATH, "a+");
     if(fp) {
@@ -83,6 +85,8 @@ void __cdecl log_printf(const char* strFormat, ...) {
 	vsnprintf_s(buf, TEXTBUFFER_SIZE, strFormat, pArglist);
 #endif
 	va_end(pArglist);
+
+	printf("%s", buf);
 	
 	FILE* fp = NULL;
     errno_t err = fopen_s(&fp, LOG_FILE_PATH, "a+");

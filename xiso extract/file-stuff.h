@@ -47,4 +47,6 @@ int splitPathFolderFile(const char *path,
                         char *file,
                         int fileLen);
 
+int findFile(const char *folder, char *isoFile, int len, const char *suffix);
+
 #endif

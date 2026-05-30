@@ -2,7 +2,7 @@
 FILE : downloadFile.cpp
 PROJECT : xstore
 PROGRAMMER : 951261
-DESCRIPTION : Downloads a file. If the file is larger than 4GB, it splits it into multiple parts. 
+DESCRIPTION : Downloads a file. If the file is larger than 4GB, it splits it into multiple parts.
 */
 
 /**
@@ -54,6 +54,7 @@ DESCRIPTION : Downloads a file. If the file is larger than 4GB, it splits it int
 #include "dns.h"
 #include "parsing.h"
 #include "OutputConsole.h"
+#include "githubCert.h"
 
 #include <xtl.h>
 #include "goDaddyRootCA.h"
@@ -284,6 +285,63 @@ unsigned long long parseStatus(char *headerBuffer, size_t bufferLength)
     return _atoi64(statusString + strlen(" ")); // atoi should automatically stop when it sees the '\n' char
 }
 
+char *parseLocation(char *headerBuffer, size_t bufferLength, char *redirectURL, size_t urlSize)
+{
+    if (headerBuffer == NULL || redirectURL == NULL || urlSize == 0 || bufferLength == 0)
+    {
+        return NULL;
+    }
+
+    redirectURL[0] = '\0';
+
+    const char prevChar = headerBuffer[bufferLength - 1];
+    headerBuffer[bufferLength - 1] = '\0';
+    const char *statusString = strstr(headerBuffer, "Location: ");
+    headerBuffer[bufferLength - 1] = prevChar;
+
+    if (statusString == NULL)
+    { // no content length found in header
+        return NULL;
+    }
+
+    const char *src = statusString + strlen("Location: ");
+
+    size_t i = 0;
+    while (src[i] != '\0' && src[i] != '\n' && src[i] != '\r')
+    {
+        if (i + 1 >= urlSize)
+        {
+            redirectURL[0] = '\0';
+            return NULL;
+        }
+
+        redirectURL[i] = src[i];
+        i++;
+    }
+    redirectURL[i] = '\0';
+
+    return redirectURL;
+}
+
+static bool CopyTextToBuffer(const char *source, char *destination, unsigned long long *destinationSize)
+{
+    if (source == NULL || destination == NULL || destinationSize == NULL || *destinationSize == 0)
+        return false;
+
+    size_t sourceLength = strlen(source);
+    size_t capacity = (size_t)*destinationSize;
+
+    if (sourceLength >= capacity)
+    {
+        destination[0] = '\0';
+        return false;
+    }
+
+    memcpy(destination, source, sourceLength + 1);
+    *destinationSize = (unsigned long long)sourceLength;
+    return true;
+}
+
 unsigned long long getClockLong()
 {
     return (unsigned long long)clock();
@@ -304,7 +362,13 @@ bool endsWith(const std::string &fullString,
                               ending.size(), ending) == 0;
 }
 
-int DumpResponse(XboxTLSContext *ctx, const std::string filename, char *outputBuffer, unsigned long long *outputBufferSize, void printFunction(const char *_format, ...))
+int DumpResponse(XboxTLSContext *ctx,
+                 const std::string filename,
+                 char *outputBuffer,
+                 unsigned long long *outputBufferSize,
+                 char *redirectBuffer,
+                 unsigned long long *redirectBufferSize,
+                 void printFunction(const char *_format, ...))
 {
     unsigned long long outputBufferSizeConst = 0;
     int responseCode = 0; // HTTP status code
@@ -440,7 +504,7 @@ int DumpResponse(XboxTLSContext *ctx, const std::string filename, char *outputBu
             totalContentLength = parseContentLength(headerBuffer, headerEnd);
 
             int status = parseStatus(headerBuffer, headerEnd);
-            responseCode = status; //value to return
+            responseCode = status; // value to return
 
             if (status != 200)
             {
@@ -454,6 +518,44 @@ int DumpResponse(XboxTLSContext *ctx, const std::string filename, char *outputBu
                 case 404:
                     printFunction("Error: Page not found\n");
                     break;
+                case 302:
+                {
+                    printFunction("Redirect Found, following\n");
+                    char newURL[1024 * 5];
+                    if (parseLocation(headerBuffer, headerEnd, newURL, sizeof(newURL)) == NULL)
+                    {
+                        printFunction("ERROR: Location header missing or too long\n");
+                        goto failure;
+                    }
+
+                    if (redirectBuffer != NULL && redirectBufferSize != NULL)
+                    {
+                        if (!CopyTextToBuffer(newURL, redirectBuffer, redirectBufferSize))
+                        {
+                            printFunction("ERROR: Redirect URL buffer too small\n");
+                            goto failure;
+                        }
+                    }
+                    else if (writeToBuffer && outputBuffer != NULL && outputBufferSize != NULL)
+                    {
+                        if (!CopyTextToBuffer(newURL, outputBuffer, outputBufferSize))
+                        {
+                            printFunction("ERROR: Redirect URL buffer too small\n");
+                            goto failure;
+                        }
+                    }
+                    else if (filename.length() > 0 && file != NULL)
+                    {
+                        fprintf(file, "%s\n", newURL);
+                    }
+                    else
+                    {
+                        goto failure;
+                    }
+
+                    goto redirectSuccess;
+                    break;
+                }
                 default:
                     break;
                 }
@@ -637,6 +739,8 @@ int DumpResponse(XboxTLSContext *ctx, const std::string filename, char *outputBu
         goto failure;
     }
 
+redirectSuccess:
+
     if (file != NULL)
         fclose(file);
 
@@ -655,7 +759,8 @@ int DumpResponse(XboxTLSContext *ctx, const std::string filename, char *outputBu
 
 failure:
 
-    if(responseCode == 200) {
+    if (responseCode == 200)
+    {
         responseCode = -1;
     }
 
@@ -676,7 +781,8 @@ failure:
     return responseCode;
 }
 
-int addTrustAnchors(XboxTLSContext *ctx) {
+int addTrustAnchors(XboxTLSContext *ctx)
+{
     // Set the hash algorithm to use for certificate validation (used by both EC and RSA trust anchors).
     // Note: SHA-384 is commonly used with modern certificates (e.g., GTS Root R4, ISRG Root X1),
     //       but this can be changed to SHA-256, SHA-512, etc., depending on the CA's signature.
@@ -689,6 +795,11 @@ int addTrustAnchors(XboxTLSContext *ctx) {
     }
 
     if (!XboxTLS_AddTrustAnchor_EC(ctx, EC_DN, sizeof(EC_DN), EC_Q, sizeof(EC_Q), XboxTLS_Curve_secp384r1))
+    {
+        return EXIT_FAILURE;
+    }
+
+    if (!XboxTLS_AddTrustAnchor_EC(ctx, TA0_DN_GITHUB, sizeof(TA0_DN_GITHUB), TA0_EC_Q_GITHUB, sizeof(TA0_EC_Q_GITHUB), XboxTLS_Curve_secp256r1))
     {
         return EXIT_FAILURE;
     }
@@ -772,7 +883,8 @@ int downloadFileHTTPS(const std::string URL, const std::string fileName, char *d
         return false;
     }
 
-    if(addTrustAnchors(&ctx) != EXIT_SUCCESS) {
+    if (addTrustAnchors(&ctx) != EXIT_SUCCESS)
+    {
         ERROR("Couldn't add trust anchor");
         XboxTLS_Free(&ctx);
         WSACleanup();
@@ -823,14 +935,16 @@ int downloadFileHTTPS(const std::string URL, const std::string fileName, char *d
         goto downloadFailed;
     }
 
+    log_printf("Attempting to connect to server over TLS 1.2\n\n");
     // Step 5: Connect + TLS handshake
     if (!XboxTLS_Connect(&ctx, ip, domain, 443))
     {
+        log_printf("TLS connection failed\n");
         goto downloadFailed;
     }
 
     // Step 6: Send GET request
-    char request[1024];
+    char request[1024 * 5];
     int requestLen;
 
     printFunction("Request: formatting\n");
@@ -862,15 +976,23 @@ int downloadFileHTTPS(const std::string URL, const std::string fileName, char *d
     // Step 7: Read and print response
     if (downloadIntoFile)
     {
-        if ( (httpStatus = DumpResponse(&ctx, fileName, NULL, NULL, printFunction)) != 200)
+        if ((httpStatus = DumpResponse(&ctx, fileName, NULL, NULL, dataBuffer, outputBufferSize, printFunction)) != 200)
         {
-            ERROR("Failed to download data over HTTPS");
+            if (httpStatus != 302)
+            {
+                ERROR("Failed to download data over HTTPS");
+            }
             goto downloadFailed;
         }
-    } else {
-        if ( (httpStatus = DumpResponse(&ctx, "", dataBuffer, outputBufferSize, printFunction)) != 200)
+    }
+    else
+    {
+        if ((httpStatus = DumpResponse(&ctx, "", dataBuffer, outputBufferSize, dataBuffer, outputBufferSize, printFunction)) != 200)
         {
-            ERROR("Failed to download data over HTTPS");
+            if (httpStatus != 302)
+            {
+                ERROR("Failed to download data over HTTPS");
+            }
             goto downloadFailed;
         }
     }

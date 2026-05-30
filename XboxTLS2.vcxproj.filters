@@ -144,6 +144,7 @@
     <ClInclude Include="OutputConsole.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="githubCert.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SSL\aead\ccm.c">

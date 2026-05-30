@@ -7,7 +7,8 @@
 enum DownloadType {
     ORIGINAL_XBOX = 1,
     XBOX_360,
-    XBLA
+    XBLA, 
+    AUTO_UPDATE
 };
 
 DWORD OpenKeyboardToString(
