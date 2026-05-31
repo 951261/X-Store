@@ -285,6 +285,8 @@ int getGame(std::string URL, const std::string sevenZipFile, const std::string i
 
 	strcat(temp, isoFile);
 
+	deleteDirectory(outputFolder.c_str(), MAX_TEXT_LENGTH); // delete the old folder
+
 	if (customForceMkdir(outputFolder.c_str()) != EXIT_SUCCESS) {
 		dprintf("Warning! Failed to create %s \n", outputFolder.c_str());
 	}
@@ -430,7 +432,7 @@ int main()
 	while (true)
 	{
 
-		dprintf("X Store store " CURRENT_VERSION " beta\n");
+		dprintf("X Store store " CURRENT_VERSION " beta (https://github.com/951261)\n");
 
 		char selectedGameURL[MAX_TEXT_LENGTH] = "";
 		char selectedGameName[MAX_TEXT_LENGTH] = "";

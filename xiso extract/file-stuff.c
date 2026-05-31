@@ -107,7 +107,7 @@ bool needsFat32LongNameWorkaround(const char *fileName)
 {
     const char *firstDot = strchr(fileName, '.');
     const char *lastDot = strrchr(fileName, '.');
-    return firstDot && lastDot && firstDot != lastDot && (firstDot - fileName) <= 9;
+    return firstDot && lastDot && firstDot != lastDot && (firstDot - fileName) <= 9 && strlen(fileName) <= 12;
 }
 
 int xbox_open(const char *filepath, int flags, int mode)
