@@ -37,6 +37,15 @@ Currently, this program supports downloading directly from Vimms Lair. While the
 ## Updating
 If you are on version 0.2.3 or later, you can update to the latest version by selecting `Update X Store` when you first start the program. If you are on an earlier version, download the latest version from the releases page, and replace X-Store.xex on your console with the latest version this github repo. 
 
+## Troubleshooting
+
+| | |
+| --- | --- |
+| I cannot search for games | This is a known issue, and I do not know why it works fine for some, but not others | 
+| The download freezes or fails | If you have any slow or intermittent internet connection, it can cause the download to fail. Currently, there is no fix for this. Additionally, check you have enough storage space to download the game | 
+| 7zip or ISO decompression fails | Check your have enough free storage space. You may need **twice** the game size in free space to ensure the download does not fail. | 
+| ISO extraction fails | Check your have enough free storage space. Also check that the path in `settings.txt` is correct. A common issue is using when extracting to an internal hard drive, you must use `hdd:\`, NOT `hdd1:\`. | 
+
 ## Compiling from the source
 
 [See Compiling](COMPILING.md)
