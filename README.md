@@ -71,6 +71,8 @@ Many thanks to all of the open source projects that made this possible, includin
 * [Simple 360 Nand Flasher](https://github.com/Swizzy/XDK_Projects) by Swizzy, to use as a base project to work from, as well as providing a simple, easy to use interface to output console style text to the screen
 * [extract-xiso](https://github.com/XboxDev/extract-xiso) by XboxDev, modified to extract ISO files directly on the Xbox itself
 * [LZMA SDK](https://www.7-zip.org/sdk.html), to decompress LZMA and LZMA 2 compressed 7z files
+* [miniz](https://github.com/richgel999/miniz) to decompress the update data
+* [cJSON](https://github.com/DaveGamble/cJSON) to parse the JSON data required to update the program
 * [Vimm's Lair](https://vimm.net/), without which this entire project would not have been possible
 
 ## Disclaimers
