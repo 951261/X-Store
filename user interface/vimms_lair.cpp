@@ -496,6 +496,32 @@ static char *extract_region_from_cell(const char *td_start, const char *td_end)
     return region;
 }
 
+static char *extract_text_from_cell(const char *td_start, const char *td_end)
+{
+    char *text = substr_dup(td_start, td_end);
+    if (!text)
+        return NULL;
+
+    strip_html_tags(text);
+    html_entity_decode(text);
+    trim_whitespace(text);
+    return text;
+}
+
+static int is_version_text(const char *text)
+{
+    if (!text || !isdigit((unsigned char)*text))
+        return 0;
+
+    for (const char *p = text; *p; p++)
+    {
+        if (!isdigit((unsigned char)*p) && *p != '.')
+            return 0;
+    }
+
+    return 1;
+}
+
 static int is_search_result_type(const char *type)
 {
     return strcmp(type, "Addon") == 0 ||
@@ -541,12 +567,13 @@ static char *extract_type_from_cell(const char *td_start, const char *td_end)
     return NULL;
 }
 
-static char *append_type_and_region_to_name(const char *name, const char *type, const char *region)
+static char *append_type_and_region_to_name(const char *name, const char *type, const char *region, const char *version)
 {
     size_t name_len = strlen(name);
     size_t type_len = (type && *type) ? strlen(type) : 0;
     size_t region_len = (region && *region) ? strlen(region) : 0;
-    size_t display_len = name_len + (type_len ? type_len + 3 : 0) + (region_len ? region_len + 3 : 0);
+    size_t version_len = (version && *version) ? strlen(version) : 0;
+    size_t display_len = name_len + (type_len ? type_len + 3 : 0) + (region_len ? region_len + 3 : 0) + (version_len ? version_len + 11 : 0);
     char *display_name = (char *)malloc(display_len + 1);
     if (!display_name)
         return NULL;
@@ -572,11 +599,20 @@ static char *append_type_and_region_to_name(const char *name, const char *type, 
         display_name[offset++] = ')';
     }
 
+    if (version_len)
+    {
+        memcpy(display_name + offset, " (Version ", 10);
+        offset += 10;
+        memcpy(display_name + offset, version, version_len);
+        offset += version_len;
+        display_name[offset++] = ')';
+    }
+
     display_name[offset] = '\0';
     return display_name;
 }
 
-static int parse_game_anchor(const char *anchor_start, GameList *out, const char *type, const char *region)
+static int parse_game_anchor(const char *anchor_start, GameList *out, const char *type, const char *region, const char *version)
 {
     const char *tag_end = strchr(anchor_start, '>');
     if (!tag_end)
@@ -620,7 +656,7 @@ static int parse_game_anchor(const char *anchor_start, GameList *out, const char
         return 1;
     }
 
-    char *display_name = append_type_and_region_to_name(name, type, region);
+    char *display_name = append_type_and_region_to_name(name, type, region, version);
     if (!display_name)
     {
         free(name);
@@ -655,6 +691,7 @@ static int parse_result_row(const char *row_start, const char *row_end, GameList
     char *type = extract_type_from_cell(td_start, td_end);
 
     char *region = NULL;
+    char *version = NULL;
     if (td_end + 5 < row_end)
     {
         const char *region_td_start = find_case_insensitive(td_end + 5, "<td");
@@ -669,16 +706,40 @@ static int parse_result_row(const char *row_start, const char *row_end, GameList
                 free(type);
                 return 0;
             }
+
+            if (region_td_end + 5 < row_end)
+            {
+                const char *version_td_start = find_case_insensitive(region_td_end + 5, "<td");
+                if (version_td_start && version_td_start < row_end)
+                {
+                    const char *version_td_end = find_case_insensitive(version_td_start, "</td>");
+                    if (!version_td_end || version_td_end > row_end)
+                        version_td_end = row_end;
+                    version = extract_text_from_cell(version_td_start, version_td_end);
+                    if (!version)
+                    {
+                        free(type);
+                        free(region);
+                        return 0;
+                    }
+                    if (!is_version_text(version))
+                    {
+                        free(version);
+                        version = NULL;
+                    }
+                }
+            }
         }
     }
 
     const char *p = td_start;
     while ((p = find_case_insensitive(p, "<a")) != NULL && p < td_end)
     {
-        if (!parse_game_anchor(p, out, type, region))
+        if (!parse_game_anchor(p, out, type, region, version))
         {
             free(type);
             free(region);
+            free(version);
             return 0;
         }
 
@@ -690,6 +751,7 @@ static int parse_result_row(const char *row_start, const char *row_end, GameList
 
     free(type);
     free(region);
+    free(version);
     return 1;
 }
 
@@ -765,6 +827,39 @@ static int copy_json_number_field(const char *start, const char *end, const char
     return copy_digits(p, out, out_size);
 }
 
+static int copy_json_version_number_field(const char *start, const char *end, const char *field, char *out, size_t out_size)
+{
+    const char *p = find_case_insensitive_until(start, end, field);
+    if (!p || !out || out_size == 0)
+        return 0;
+
+    p += strlen(field);
+    while (p < end && isspace((unsigned char)*p))
+        p++;
+
+    if (p >= end || *p != ':')
+        return 0;
+
+    p++;
+    while (p < end && isspace((unsigned char)*p))
+        p++;
+
+    size_t len = 0;
+    while (p + len < end && (isdigit((unsigned char)p[len]) || p[len] == '.'))
+    {
+        if (len + 1 >= out_size)
+            return 0;
+        len++;
+    }
+
+    if (len == 0 || !isdigit((unsigned char)*p))
+        return 0;
+
+    memcpy(out, p, len);
+    out[len] = '\0';
+    return 1;
+}
+
 static int parse_media_id_from_media_variable(const char *html, char *mediaId, size_t mediaIdSize)
 {
     const char *media = find_case_insensitive(html, "let media");
@@ -833,7 +928,7 @@ static int parse_media_ids_from_media_variable(const char *html, MediaList *out)
         char version[32] = "1.0";
         copy_json_number_field(p, entry_end, "\"SortOrder\"", disc, sizeof(disc));
         if (!copy_json_string_field(p, entry_end, "\"VersionString\"", version, sizeof(version)))
-            copy_json_string_field(p, entry_end, "\"Version\"", version, sizeof(version));
+            copy_json_version_number_field(p, entry_end, "\"Version\"", version, sizeof(version));
 
         if (!push_media(out, id, disc, version))
             return 0;

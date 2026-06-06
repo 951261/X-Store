@@ -36,7 +36,7 @@ static const char *GetDownloadTypeName(enum DownloadType type)
         return "Xbox 360";
 
     case XBLA:
-        return "XBLA";
+        return "XBLA, DLC and Title Updates";
 
     case AUTO_UPDATE:
         return "Update X-Store";

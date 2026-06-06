@@ -8,9 +8,8 @@
 #include <OutputConsole.h>
 
 #ifndef INVALID_FILE_ATTRIBUTES
-#define INVALID_FILE_ATTRIBUTES ((DWORD)-1)
+#define INVALID_FILE_ATTRIBUTES ((DWORD) - 1)
 #endif
-
 
 static bool isPathSep(char c)
 {
@@ -21,7 +20,8 @@ static std::string joinPath(const char *left, const char *right)
 {
     std::string result = left ? left : "";
 
-    if (!result.empty() && !isPathSep(result[result.size() - 1])) {
+    if (!result.empty() && !isPathSep(result[result.size() - 1]))
+    {
         result += "\\";
     }
 
@@ -47,7 +47,8 @@ static bool ensureDirectoryExists(const char *path)
 {
     DWORD attrs = GetFileAttributesA(path);
 
-    if (attrs != INVALID_FILE_ATTRIBUTES) {
+    if (attrs != INVALID_FILE_ATTRIBUTES)
+    {
         return (attrs & FILE_ATTRIBUTE_DIRECTORY) != 0;
     }
 
@@ -57,18 +58,22 @@ static bool ensureDirectoryExists(const char *path)
 
 static std::string fullPath(const char *path)
 {
-    if (!path || !*path) {
+    if (!path || !*path)
+    {
         return "";
     }
 
     std::string out = path;
-    for (size_t i = 0; i < out.size(); ++i) {
-        if (out[i] == '/') {
+    for (size_t i = 0; i < out.size(); ++i)
+    {
+        if (out[i] == '/')
+        {
             out[i] = '\\';
         }
     }
 
-    while (!out.empty() && isPathSep(out[out.size() - 1])) {
+    while (!out.empty() && isPathSep(out[out.size() - 1]))
+    {
         out.resize(out.size() - 1);
     }
 
@@ -80,15 +85,18 @@ static bool destinationIsInsideSource(const char *src, const char *dst)
     std::string s = fullPath(src);
     std::string d = fullPath(dst);
 
-    if (s.empty() || d.empty()) {
+    if (s.empty() || d.empty())
+    {
         return true;
     }
 
-    for (size_t i = 0; i < s.size(); ++i) {
+    for (size_t i = 0; i < s.size(); ++i)
+    {
         s[i] = (char)tolower((unsigned char)s[i]);
     }
 
-    for (size_t i = 0; i < d.size(); ++i) {
+    for (size_t i = 0; i < d.size(); ++i)
+    {
         d[i] = (char)tolower((unsigned char)d[i]);
     }
 
@@ -104,31 +112,40 @@ static int copyDirectoryInner(const char *srcDir, const char *dstDir)
 
     WIN32_FIND_DATAA data;
     HANDLE handle = FindFirstFileA(search.c_str(), &data);
-	
-    if (handle == INVALID_HANDLE_VALUE) {
+
+    if (handle == INVALID_HANDLE_VALUE)
+    {
         return -1;
     }
 
-    do {
-        if (isDotDir(data.cFileName)) {
+    do
+    {
+        if (isDotDir(data.cFileName))
+        {
             continue;
         }
 
         std::string srcPath = joinPath(srcDir, data.cFileName);
         std::string dstPath = joinPath(dstDir, data.cFileName);
 
-        if (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-            if (!ensureDirectoryExists(dstPath.c_str())) {
+        if (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+        {
+            if (!ensureDirectoryExists(dstPath.c_str()))
+            {
                 FindClose(handle);
                 return -1;
             }
 
-            if (copyDirectoryInner(srcPath.c_str(), dstPath.c_str()) != EXIT_SUCCESS) {
+            if (copyDirectoryInner(srcPath.c_str(), dstPath.c_str()) != EXIT_SUCCESS)
+            {
                 FindClose(handle);
                 return -1;
             }
-        } else {
-            if (!CopyFileA(srcPath.c_str(), dstPath.c_str(), FALSE)) {
+        }
+        else
+        {
+            if (!CopyFileA(srcPath.c_str(), dstPath.c_str(), FALSE))
+            {
                 FindClose(handle);
                 return -1;
             }
@@ -140,25 +157,29 @@ static int copyDirectoryInner(const char *srcDir, const char *dstDir)
     DWORD findError = GetLastError();
     FindClose(handle);
 
-    return ( findError == ERROR_NO_MORE_FILES ? EXIT_SUCCESS : -1 );
+    return (findError == ERROR_NO_MORE_FILES ? EXIT_SUCCESS : -1);
 }
 
 int copyDirectory(const char *srcDir, const char *dstDir)
 {
-    if (!srcDir || !*srcDir || !dstDir || !*dstDir) {
+    if (!srcDir || !*srcDir || !dstDir || !*dstDir)
+    {
         return -1;
     }
 
-    if (!pathIsDirectory(srcDir)) {
+    if (!pathIsDirectory(srcDir))
+    {
         return -1;
     }
 
     /* Prevent recursive self-copy like: copyDirectory("A", "A\\backup") */
-    if (destinationIsInsideSource(srcDir, dstDir)) {
+    if (destinationIsInsideSource(srcDir, dstDir))
+    {
         return -1;
     }
 
-    if (!ensureDirectoryExists(dstDir)) {
+    if (!ensureDirectoryExists(dstDir))
+    {
         return -1;
     }
 
@@ -174,12 +195,15 @@ static const char *path_basename_c(const char *path)
 {
     const char *last = path;
 
-    if (!path || !*path) {
+    if (!path || !*path)
+    {
         return "";
     }
 
-    for (const char *p = path; *p; ++p) {
-        if (is_path_sep(*p) && p[1] != '\0') {
+    for (const char *p = path; *p; ++p)
+    {
+        if (is_path_sep(*p) && p[1] != '\0')
+        {
             last = p + 1;
         }
     }
@@ -191,12 +215,15 @@ static int is_eight_hex_chars_c(const char *value)
 {
     size_t i;
 
-    if (!value) {
+    if (!value)
+    {
         return 0;
     }
 
-    for (i = 0; value[i]; ++i) {
-        if (i >= 8 || !isxdigit((unsigned char)value[i])) {
+    for (i = 0; value[i]; ++i)
+    {
+        if (i >= 8 || !isxdigit((unsigned char)value[i]))
+        {
             return 0;
         }
     }
@@ -209,13 +236,15 @@ static char *dup_string_c(const char *value)
     size_t len;
     char *copy;
 
-    if (!value) {
+    if (!value)
+    {
         return NULL;
     }
 
     len = strlen(value);
     copy = (char *)malloc(len + 1);
-    if (!copy) {
+    if (!copy)
+    {
         return NULL;
     }
 
@@ -230,7 +259,8 @@ static char *join_path_c(const char *left, const char *right)
     int needs_sep;
     char *result;
 
-    if (!left || !right) {
+    if (!left || !right)
+    {
         return NULL;
     }
 
@@ -239,17 +269,21 @@ static char *join_path_c(const char *left, const char *right)
     needs_sep = left_len > 0 && !is_path_sep(left[left_len - 1]);
 
     result = (char *)malloc(left_len + needs_sep + right_len + 1);
-    if (!result) {
+    if (!result)
+    {
         return NULL;
     }
 
     memcpy(result, left, left_len);
 
-    if (needs_sep) {
+    if (needs_sep)
+    {
         result[left_len] = '\\';
         memcpy(result + left_len + 1, right, right_len);
         result[left_len + 1 + right_len] = '\0';
-    } else {
+    }
+    else
+    {
         memcpy(result + left_len, right, right_len);
         result[left_len + right_len] = '\0';
     }
@@ -267,33 +301,48 @@ static int path_is_directory_c(const char *path)
 
 static int has_xbla_content_folder_c(const char *title_id_dir)
 {
-    char *content_dir = join_path_c(title_id_dir, "000D0000");
-    int exists;
+    const char contentTypes[][10] = {"000D0000", "00007000", "00004000", "00000002", "00020000",
+                                     "000B0000", "000E0000", "02000000", "00030000", "00009000"};
 
-    if (!content_dir) {
-        return 0;
+    for (int i = 0; i < sizeof(contentTypes) / sizeof(contentTypes[0]); i++)
+    {
+        char *content_dir = join_path_c(title_id_dir, contentTypes[i]);
+        int exists;
+
+        if (!content_dir)
+        {
+            return 0;
+        }
+
+        exists = path_is_directory_c(content_dir);
+        free(content_dir);
+
+        if (exists == 1)
+        {
+            return 1;
+        }
     }
 
-    exists = path_is_directory_c(content_dir);
-    free(content_dir);
-
-    return exists;
+    return 0;
 }
 
 static int check_xbla_candidate_c(const char *dir, char **match)
 {
     const char *name = path_basename_c(dir);
 
-    if (!is_eight_hex_chars_c(name)) {
+    if (!is_eight_hex_chars_c(name))
+    {
         return 1;
     }
 
-    if (!has_xbla_content_folder_c(dir)) {
+    if (!has_xbla_content_folder_c(dir))
+    {
         return 1;
     }
 
     /* More than one XBLA title folder found. Treat as unsafe/ambiguous. */
-    if (*match) {
+    if (*match)
+    {
         return 0;
     }
 
@@ -307,40 +356,48 @@ static int scan_for_xbla_title_id_dir_c(const char *dir, char **match)
     WIN32_FIND_DATAA data;
     HANDLE handle;
 
-    if (!check_xbla_candidate_c(dir, match)) {
+    if (!check_xbla_candidate_c(dir, match))
+    {
         return 0;
     }
 
     search_pattern = join_path_c(dir, "*");
-    if (!search_pattern) {
+    if (!search_pattern)
+    {
         return 0;
     }
 
     handle = FindFirstFileA(search_pattern, &data);
     free(search_pattern);
 
-    if (handle == INVALID_HANDLE_VALUE) {
+    if (handle == INVALID_HANDLE_VALUE)
+    {
         return 1;
     }
 
-    do {
+    do
+    {
         char *child_path;
 
-        if (!strcmp(data.cFileName, ".") || !strcmp(data.cFileName, "..")) {
+        if (!strcmp(data.cFileName, ".") || !strcmp(data.cFileName, ".."))
+        {
             continue;
         }
 
-        if (!(data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+        if (!(data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+        {
             continue;
         }
 
         child_path = join_path_c(dir, data.cFileName);
-        if (!child_path) {
+        if (!child_path)
+        {
             FindClose(handle);
             return 0;
         }
 
-        if (!scan_for_xbla_title_id_dir_c(child_path, match)) {
+        if (!scan_for_xbla_title_id_dir_c(child_path, match))
+        {
             free(child_path);
             FindClose(handle);
             return 0;
@@ -357,11 +414,13 @@ char *findXblaTitleIdDir(const char *extractedRoot)
 {
     char *match = NULL;
 
-    if (!extractedRoot || !*extractedRoot || !path_is_directory_c(extractedRoot)) {
+    if (!extractedRoot || !*extractedRoot || !path_is_directory_c(extractedRoot))
+    {
         return NULL;
     }
 
-    if (!scan_for_xbla_title_id_dir_c(extractedRoot, &match)) {
+    if (!scan_for_xbla_title_id_dir_c(extractedRoot, &match))
+    {
         free(match);
         return NULL;
     }
