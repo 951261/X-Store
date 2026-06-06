@@ -145,6 +145,9 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="githubCert.h" />
+    <ClInclude Include="xblaParsing.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SSL\aead\ccm.c">
@@ -1045,6 +1048,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="OutputConsole.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="xblaParsing.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

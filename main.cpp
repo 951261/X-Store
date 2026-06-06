@@ -2,7 +2,7 @@
 FILE : main.cpp
 PROJECT : xstore
 PROGRAMMER : 951261
-DESCRIPTION : READ THE FILE NAME (Haha). This is the main file that coordinates everyting. 
+DESCRIPTION : READ THE FILE NAME (Haha). This is the main file that coordinates everyting.
 */
 
 #include "OutputConsole.h"
@@ -20,6 +20,7 @@ DESCRIPTION : READ THE FILE NAME (Haha). This is the main file that coordinates 
 
 #include "downloadFile.h"
 #include "decompress7z.h"
+#include "xblaParsing.h"
 
 #include <settings.h>
 #include <extract-xiso.h>
@@ -28,12 +29,17 @@ DESCRIPTION : READ THE FILE NAME (Haha). This is the main file that coordinates 
 #include <win32/dirent.h>
 
 #include <file-stuff.h>
+#include <vector>
+#include <algorithm>
 
 #define SETTINGS_FILE "game:\\settings.txt"
 
 struct Settings
 {
-	char outputPath[MAX_TEXT_LENGTH];
+	char originalXboxPath[MAX_TEXT_LENGTH];
+	char xbox360Path[MAX_TEXT_LENGTH];
+	char xblaPath[MAX_TEXT_LENGTH];
+	char legacyPath[MAX_TEXT_LENGTH];
 };
 
 bool CheckGameMounted()
@@ -209,6 +215,60 @@ static int DeleteSplitFiles(const char *firstPartFile)
 	return result;
 }
 
+std::vector<std::string> split(const std::string &str, char delimiter)
+{
+	std::vector<std::string> tokens;
+	size_t start = 0;
+	size_t end = str.find(delimiter);
+
+	while (end != std::string::npos)
+	{
+		tokens.push_back(str.substr(start, end - start));
+		start = end + 1;
+		end = str.find(delimiter, start);
+	}
+
+	tokens.push_back(str.substr(start));
+	return tokens;
+}
+
+static std::string removeTrailingSlash(std::string str)
+{
+	while (str.length() > 0 && (str[str.length() - 1] == '\\' || str[str.length() - 1] == '/'))
+	{
+		if (!str.empty())
+		{
+			str.resize(str.size() - 1);
+		}
+	}
+
+	return str;
+}
+
+static std::string getPathNameIndex(std::string str, const int index)
+{
+	if (str.find("\\\\") != std::string::npos || str.find("//") != std::string::npos)
+	{
+		dprintf("ERROR: Failed to parse path\n");
+		return std::string("");
+	}
+
+	std::replace(str.begin(), str.end(), '/', '\\'); // clean up the path to make splitting easier
+
+	str = removeTrailingSlash(str);
+
+	std::vector<std::string> pathSections = split(str, '\\');
+
+	if (index < 0)
+	{
+		return pathSections[pathSections.size() + index];
+	}
+	else
+	{
+		return pathSections[index];
+	}
+}
+
 int getGame(std::string URL, const std::string sevenZipFile, const std::string isoFolder, const std::string outputFolder, const int downloadType)
 {
 	std::string backupDomain = SECONDARY_DOWNLOAD_DOMAIN;
@@ -240,13 +300,14 @@ int getGame(std::string URL, const std::string sevenZipFile, const std::string i
 		return EXIT_FAILURE;
 	}
 
-	if (customForceMkdir(isoFolder.c_str()) != EXIT_SUCCESS) {
+	if (customForceMkdir(isoFolder.c_str()) != EXIT_SUCCESS)
+	{
 		dprintf("Warning, failed to create %s \n", isoFolder.c_str());
 	}
 
 	dprintf("Download complete, beginning extraction of %s \n", sevenZipFile.c_str());
 
-	if (decompressSevenZipFile(sevenZipFile.c_str(), isoFolder.c_str(), (downloadType == XBLA) ) == EXIT_FAILURE)
+	if (decompressSevenZipFile(sevenZipFile.c_str(), isoFolder.c_str(), (downloadType == XBLA)) == EXIT_FAILURE)
 	{
 		return EXIT_FAILURE;
 	}
@@ -260,6 +321,45 @@ int getGame(std::string URL, const std::string sevenZipFile, const std::string i
 
 	if (downloadType == XBLA)
 	{
+		// copy to final DIR
+		// When downloading XBLA, isoFolder is actually the output folder
+		char *xblaDir = findXblaTitleIdDir(isoFolder.c_str());
+		if (xblaDir == NULL)
+		{
+			dprintf("Failed to find XBLA directory\n");
+			return EXIT_FAILURE;
+		}
+
+		std::string path = removeTrailingSlash(xblaDir);
+		std::string gameID = getPathNameIndex(path, -1); // get final folder in path which SHOULD be the gameID
+
+		free(xblaDir);
+
+		std::string copyDestinationPath = outputFolder;
+		copyDestinationPath = removeTrailingSlash(outputFolder) + "\\" + gameID;
+
+		// if (deleteDirectory(copyDestinationPath.c_str(), copyDestinationPath.length() + 2) != EXIT_SUCCESS) { // attempt to delete any old files
+		// 	log_printf("Warning: Failed to delete %s \n", copyDestinationPath.c_str());
+		// }
+
+		if (customForceMkdir(copyDestinationPath.c_str()) != 0)
+		{
+			log_printf("Warning: failed to create %s \n", copyDestinationPath.c_str());
+		}
+
+		dprintf("Copying files to final directory. This may take a while\n");
+
+		if (copyDirectory(path.c_str(), copyDestinationPath.c_str()) != EXIT_SUCCESS)
+		{
+			dprintf("Error: directory copy failed to copy %s to %s \n", path.c_str(), copyDestinationPath.c_str());
+			return EXIT_FAILURE;
+		}
+
+		if (deleteDirectory(isoFolder.c_str(), isoFolder.length() + 2) != EXIT_SUCCESS)
+		{
+			dprintf("Warning: Failed to remove directory %s \n", path.c_str());
+		}
+
 		return EXIT_SUCCESS;
 	}
 
@@ -287,7 +387,8 @@ int getGame(std::string URL, const std::string sevenZipFile, const std::string i
 
 	deleteDirectory(outputFolder.c_str(), MAX_TEXT_LENGTH); // delete the old folder
 
-	if (customForceMkdir(outputFolder.c_str()) != EXIT_SUCCESS) {
+	if (customForceMkdir(outputFolder.c_str()) != EXIT_SUCCESS)
+	{
 		dprintf("Warning! Failed to create %s \n", outputFolder.c_str());
 	}
 
@@ -381,11 +482,39 @@ static void MakeSafeFolderName(const char *gameName, char *folderName, int folde
 	folderName[out] = '\0';
 }
 
+static int parseSettings(const char *setting, const char *settingsFileBuff, char *output)
+{
+	if (strncmp(settingsFileBuff, setting, strlen(setting)) == 0)
+	{
+		log_printf("Found original-xbox-path in settings.txt\n\n");
+
+		char *value = strdup(&settingsFileBuff[strlen(setting)]);
+
+		if (value == NULL)
+		{
+			return -1;
+		}
+
+		value[strcspn(value, "\r\n")] = '\0';
+
+		strncpy(output, value, MAX_TEXT_LENGTH - 1);
+
+		output[MAX_TEXT_LENGTH - 1] = '\0'; // ensure the string is NULL terminated
+
+		free(value);
+	}
+
+	return EXIT_SUCCESS;
+}
+
 struct Settings getSettings()
 {
 	struct Settings settings;
 
-	strcpy(settings.outputPath, "Usb0:"); // default back to where ever the xex file was launched from
+	strcpy(settings.originalXboxPath, " "); // default back to where ever the xex file was launched from
+	strcpy(settings.xbox360Path, " ");		// default back to where ever the xex file was launched from
+	strcpy(settings.xblaPath, " ");			// default back to where ever the xex file was launched from
+	strcpy(settings.legacyPath, " ");		// default back to where ever the xex file was launched from
 
 	FILE *fd = fopen(SETTINGS_FILE, "r");
 
@@ -395,28 +524,79 @@ struct Settings getSettings()
 		return settings;
 	}
 
-	char buff[MAX_TEXT_LENGTH];
+	struct stat st;
+	if (stat(SETTINGS_FILE, &st) == 0)
+	{
+		log_printf("Settings file size: %ld bytes\n", (long)st.st_size);
+	}
+	else
+	{
+		log_printf("Error getting file size");
+	}
 
-	while (fgets(buff, sizeof(buff), fd) != NULL)
+	const long fileSize = st.st_size;
+
+	char *buff = (char *)malloc(fileSize + 5); // A few extra bytes just to be safe
+
+	while (fgets(buff, fileSize + 5, fd) != NULL)
 	{
 		if (buff[0] == '#')
 		{
 			continue; // comment
 		}
 
-		if (strncmp(buff, "output-path: ", strlen("output-path: ")) == 0)
+		parseSettings("original-xbox-path: ", buff, settings.originalXboxPath);
+		parseSettings("xbox-360-path: ", buff, settings.xbox360Path);
+		parseSettings("xbla-path: ", buff, settings.xblaPath);
+
+		parseSettings("output-path: ", buff, settings.legacyPath);
+	}
+
+	if (strlen(settings.originalXboxPath) < 3)
+	{
+		dprintf("Decrepidation Warning: original-xbox-path not found in settings.txt. Using legacy path\n It is HIGHLY RECOMMENDED to update your settings.txt file. See https://github.com/951261/X-Store for details\n");
+
+		if (strlen(settings.legacyPath) < 3)
 		{
-			char *value = &buff[strlen("output-path: ")];
+			dprintf("ERROR: No legacy path found in settings.txt \n\n");
+		}
+		else
+		{
+			strcpy(settings.originalXboxPath, settings.legacyPath);
+		}
+	}
 
-			value[strcspn(value, "\r\n")] = '\0';
+	if (strlen(settings.xbox360Path) < 3)
+	{
+		dprintf("Decrepidation Warning: xbox-360-path not found in settings.txt. Using legacy path\n It is HIGHLY RECOMMENDED to update your settings.txt file. See https://github.com/951261/X-Store for details\n");
 
-			strncpy(settings.outputPath, value, MAX_TEXT_LENGTH - 1);
+		if (strlen(settings.legacyPath) < 3)
+		{
+			dprintf("ERROR: No legacy path found in settings.txt \n\n");
+		}
+		else
+		{
+			strcpy(settings.xbox360Path, settings.legacyPath);
+		}
+	}
 
-			settings.outputPath[MAX_TEXT_LENGTH - 1] = '\0'; // ensure the string is NULL terminated
+	if (strlen(settings.xblaPath) < 3)
+	{
+		dprintf("Decrepidation Warning: xbla-path not found in settings.txt. Using legacy path\n It is HIGHLY RECOMMENDED to update your settings.txt file. See https://github.com/951261/X-Store for details\n");
+
+		if (strlen(settings.legacyPath) < 3)
+		{
+			dprintf("ERROR: No legacy path found in settings.txt \n\n");
+		}
+		else
+		{
+			strcpy(settings.xblaPath, settings.legacyPath);
 		}
 	}
 
 	fclose(fd);
+
+	free(buff);
 
 	return settings;
 }
@@ -455,7 +635,27 @@ int main()
 		struct Settings settings = getSettings();
 
 		MakeSafeFolderName(selectedGameName, safeGameFolderName, FATX_SAFE_FOLDER_NAME_LEN);
-		_snprintf(outputFolder, sizeof(outputFolder), "%s\\%s", settings.outputPath, safeGameFolderName);
+
+		switch (downloadType)
+		{
+		case ORIGINAL_XBOX:
+			_snprintf(outputFolder, sizeof(outputFolder), "%s\\%s", settings.originalXboxPath, safeGameFolderName);
+			break;
+
+		case XBOX_360:
+			_snprintf(outputFolder, sizeof(outputFolder), "%s\\%s", settings.xbox360Path, safeGameFolderName);
+			break;
+
+		case XBLA:
+			_snprintf(outputFolder, sizeof(outputFolder), "%s\\%s", settings.xblaPath, safeGameFolderName);
+			break;
+		
+		default:
+			dprintf("ERROR: Unknown download type: %d \n", downloadType);
+			goto exitFailed;
+			break;
+		}
+		
 		outputFolder[sizeof(outputFolder) - 1] = '\0';
 
 		dprintf("Extracting to: %s\n", outputFolder);
@@ -464,7 +664,7 @@ int main()
 
 		if (downloadType == XBLA)
 		{
-			downloadStatus = getGame(std::string(selectedGameURL), "game:\\tmp.7z.001", outputFolder, "", downloadType);
+			downloadStatus = getGame(std::string(selectedGameURL), "game:\\tmp.7z.001", outputFolder, settings.xblaPath, downloadType);
 		}
 		else
 		{
@@ -477,7 +677,7 @@ int main()
 		}
 
 	exitFailed:
-		dprintf("Something went wrong! Press Y to search again, or B to exit");
+		dprintf("Something went wrong! Press Y to search again, or B to exit\n");
 
 		XINPUT_STATE state;
 		ZeroMemory(&state, sizeof(state));

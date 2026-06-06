@@ -300,6 +300,7 @@
     <ClInclude Include="SSL\inc\bearssl_ssl.h" />
     <ClInclude Include="SSL\inc\bearssl_x509.h" />
     <ClInclude Include="SSL\inner.h" />
+    <ClInclude Include="xblaParsing.h" />
     <ClInclude Include="XboxTLS.h" />
   </ItemGroup>
   <ItemGroup>
@@ -628,6 +629,7 @@
     <ClCompile Include="SSL\x509\x509_minimal_full.c">
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|Xbox 360'">CompileAsC</CompileAs>
     </ClCompile>
+    <ClCompile Include="xblaParsing.cpp" />
     <ClCompile Include="XboxTLS.cpp" />
   </ItemGroup>
   <ItemGroup>

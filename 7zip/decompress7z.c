@@ -657,13 +657,17 @@ static SRes joined_stream_read(ISeekInStreamPtr pp, void *buf, size_t *size)
 
         seek_pos = (Int64)local_offset;
         stream->wres = File_Seek(&part->file, &seek_pos, SZ_SEEK_SET);
-        if (stream->wres != 0)
+        if (stream->wres != 0) {
+            dprintf("ERROR: Failed File_Seek to %lld from SZ_SEEK_SET failed \n", local_offset);
             return SZ_ERROR_READ;
+        }
 
         processed = chunk;
         stream->wres = File_Read(&part->file, dst, &processed);
-        if (stream->wres != 0)
+        if (stream->wres != 0) {
+            dprintf("ERROR: File_Read failed to read %zu bytes \n", chunk);
             return SZ_ERROR_READ;
+        }
 
         if (processed == 0)
             break;
@@ -694,11 +698,13 @@ static SRes joined_stream_seek(ISeekInStreamPtr pp, Int64 *pos, ESzSeek origin)
             break;
         default:
             stream->wres = EINVAL;
+            dprintf("ERROR: join_stream_seek failed, invalid origin: %d \n", ((int)origin) );
             return SZ_ERROR_READ;
     }
 
     if (new_pos < 0) {
         stream->wres = EINVAL;
+        dprintf("ERROR: invalid read position: %lld \n", new_pos);
         return SZ_ERROR_READ;
     }
 
@@ -1215,9 +1221,9 @@ int decompressSevenZipFile(const char *inputFile, const char *outputPath, const 
         goto cleanup;
     }
 
-    log_printf("Archive : %s\n", archive_path);
-    log_printf("Files   : %u\n", (unsigned)db.NumFiles);
-    log_printf("Output  : %s\n\n", out_dir);
+    dprintf("Archive : %s\n", archive_path);
+    dprintf("Files   : %u\n", (unsigned)db.NumFiles);
+    dprintf("Output  : %s\n\n", out_dir);
 
     for (i = 0; i < db.NumFiles; i++) {
         if (!SzArEx_IsDir(&db, i))
@@ -1294,13 +1300,13 @@ int decompressSevenZipFile(const char *inputFile, const char *outputPath, const 
             continue;
         }
 
-        printf("  x  %s  (%llu bytes)\n",
+        log_printf("  x  %s  (%llu bytes)\n",
                name_buf, (unsigned long long)file_size);
     }
 
     progress_finish(&progress, errors == 0);
 
-    printf("\n%s  (%d error%s)\n",
+    log_printf("\n%s  (%d error%s)\n",
            errors ? "Done with errors" : "Done",
            errors,
            errors == 1 ? "" : "s");
