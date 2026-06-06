@@ -24,7 +24,7 @@ The Xbox 360 game store is a piece of homebrew for the Xbox 360 that allows game
 
 1. Download X-store.zip from the releases
 2. Extract the .xex and settings.txt files from the ZIP file, and transfer them to your console
-3. Set the output path for games in settings.txt. This will be where games will be extracted to
+3. Set the output path for games in settings.txt. (for example `hdd:\games` or `usb0:\Content\0000000000000000`) This will be where games will be extracted to
 4. Launch it using your favourite file manager or dashboard
 5. Search for your favourite game
 6. Navigate the menu with ↑ and ↓
@@ -32,7 +32,19 @@ The Xbox 360 game store is a piece of homebrew for the Xbox 360 that allows game
 8. Select a version of the game
 9. Press A to begin the download
 
-Currently, this program supports downloading directly from Vimms Lair. While the download speeds can be slow, it contains a variety of games.
+Currently, this program supports downloading directly from Vimms Lair. While the download speeds can be slow, it contains a variety of games. 
+
+## Updating
+If you are on version 0.2.3 or later, you can update to the latest version by selecting `Update X Store` when you first start the program. If you are on an earlier version, download the latest version from the releases page, and replace X-Store.xex on your console with the latest version this github repo. 
+
+## Troubleshooting
+
+| | |
+| --- | --- |
+| I cannot search for games | This is a known issue, and I do not know why it works fine for some, but not others | 
+| The download freezes or fails | If you have any slow or intermittent internet connection, it can cause the download to fail. Currently, there is no fix for this. Additionally, check you have enough storage space to download the game | 
+| 7zip or ISO decompression fails | Check your have enough free storage space. You may need **twice** the game size in free space to ensure the download does not fail. | 
+| ISO extraction fails | Check your have enough free storage space. Also check that the path in `settings.txt` is correct. A common issue is using when extracting to an internal hard drive, you must use `hdd:\`, NOT `hdd1:\`. | 
 
 ## Compiling from the source
 
@@ -59,6 +71,8 @@ Many thanks to all of the open source projects that made this possible, includin
 * [Simple 360 Nand Flasher](https://github.com/Swizzy/XDK_Projects) by Swizzy, to use as a base project to work from, as well as providing a simple, easy to use interface to output console style text to the screen
 * [extract-xiso](https://github.com/XboxDev/extract-xiso) by XboxDev, modified to extract ISO files directly on the Xbox itself
 * [LZMA SDK](https://www.7-zip.org/sdk.html), to decompress LZMA and LZMA 2 compressed 7z files
+* [miniz](https://github.com/richgel999/miniz) to decompress the update data
+* [cJSON](https://github.com/DaveGamble/cJSON) to parse the JSON data required to update the program
 * [Vimm's Lair](https://vimm.net/), without which this entire project would not have been possible
 
 ## Disclaimers
