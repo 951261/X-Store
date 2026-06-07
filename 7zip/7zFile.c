@@ -5,6 +5,8 @@
 
 #include "7zFile.h"
 
+#include "../OutputConsole.h"
+
 #include <xtl.h>
 
 #ifndef USE_WINDOWS_FILE
@@ -392,9 +394,11 @@ WRes File_GetLength(CSzFile *p, UInt64 *length)
 
 static SRes FileSeqInStream_Read(ISeqInStreamPtr pp, void *buf, size_t *size)
 {
+  size_t beforeSize = *size;
   Z7_CONTAINER_FROM_VTBL_TO_DECL_VAR_pp_vt_p(CFileSeqInStream)
   const WRes wres = File_Read(&p->file, buf, size);
   p->wres = wres;
+  if(wres != 0) dprintf("ERROR: Read %llu bytes failed with error %d \n", ((unsigned long long)beforeSize), ((int)wres) );
   return (wres == 0) ? SZ_OK : SZ_ERROR_READ;
 }
 
@@ -408,17 +412,23 @@ void FileSeqInStream_CreateVTable(CFileSeqInStream *p)
 
 static SRes FileInStream_Read(ISeekInStreamPtr pp, void *buf, size_t *size)
 {
+  size_t beforeSize = *size;
   Z7_CONTAINER_FROM_VTBL_TO_DECL_VAR_pp_vt_p(CFileInStream)
   const WRes wres = File_Read(&p->file, buf, size);
   p->wres = wres;
+
+  if(wres != 0) dprintf("ERROR: Read %llu bytes failed with error %d \n", ((unsigned long long)beforeSize), ((int)wres) );
   return (wres == 0) ? SZ_OK : SZ_ERROR_READ;
 }
 
 static SRes FileInStream_Seek(ISeekInStreamPtr pp, Int64 *pos, ESzSeek origin)
 {
+  Int64 beforePos = *pos;
   Z7_CONTAINER_FROM_VTBL_TO_DECL_VAR_pp_vt_p(CFileInStream)
   const WRes wres = File_Seek(&p->file, pos, origin);
   p->wres = wres;
+
+  if(wres != 0) dprintf("ERROR: Seek to %lld from origin %d failed with error %d \n", ((long long)beforePos), ((int)origin), ((int)wres) );
   return (wres == 0) ? SZ_OK : SZ_ERROR_READ;
 }
 

@@ -19,3 +19,5 @@ ipch
 **/*.sdf
 
 ipch
+
+.env

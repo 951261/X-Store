@@ -24,7 +24,6 @@ MAIN FUNCTION : showUI
 #define TEXTBUFFER_SIZE (1024 * 10)
 #define HTML_BUFFER_CAPACITY (1024 * 1024 * 4);
 
-
 static const char *GetDownloadTypeName(enum DownloadType type)
 {
     switch (type)
@@ -106,8 +105,8 @@ static void RenderDownloadTypeMenu(int selected)
     {
         enum DownloadType type = GetDownloadTypeFromIndex(i);
         _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "%c %s\n",
-                i == selected ? '>' : ' ',
-                GetDownloadTypeName(type));
+                  i == selected ? '>' : ' ',
+                  GetDownloadTypeName(type));
     }
 
     _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "\nA: Select   B: Back   D-Pad: Move\n");
@@ -119,6 +118,7 @@ static enum DownloadType ShowDownloadTypeMenu()
 {
     int selected = 0;
     WORD previousButtons = 0;
+    WORD previousPreviousButtons = 0;
 
     RenderDownloadTypeMenu(selected);
 
@@ -134,8 +134,7 @@ static enum DownloadType ShowDownloadTypeMenu()
         }
 
         WORD buttons = state.Gamepad.wButtons;
-        WORD pressed = buttons & ~previousButtons;
-        previousButtons = buttons;
+        WORD pressed = buttons; // & ~previousButtons;
 
         if (pressed & XINPUT_GAMEPAD_A)
             return GetDownloadTypeFromIndex(selected);
@@ -144,10 +143,22 @@ static enum DownloadType ShowDownloadTypeMenu()
             return (enum DownloadType)0;
 
         if (pressed & XINPUT_GAMEPAD_DPAD_UP)
+        {
             selected--;
+            if (previousButtons != 0 && previousPreviousButtons == 0)
+            {
+                Sleep(500);
+            }
+        }
 
         if (pressed & XINPUT_GAMEPAD_DPAD_DOWN)
+        {
             selected++;
+            if (previousButtons != 0 && previousPreviousButtons == 0)
+            {
+                Sleep(500);
+            }
+        }
 
         if (selected < 0)
             selected = 0;
@@ -158,6 +169,8 @@ static enum DownloadType ShowDownloadTypeMenu()
         if (pressed & (XINPUT_GAMEPAD_DPAD_UP | XINPUT_GAMEPAD_DPAD_DOWN))
             RenderDownloadTypeMenu(selected);
 
+        previousPreviousButtons = previousButtons;
+        previousButtons = buttons;
         Sleep(50);
     }
 }
@@ -184,9 +197,9 @@ static void RenderSearchResults(const GameList *list, int selected, int scroll)
             break;
 
         _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "%c %2d. %s\n",
-                index == selected ? '>' : ' ',
-                index + 1,
-                list->items[index].name);
+                  index == selected ? '>' : ' ',
+                  index + 1,
+                  list->items[index].name);
     }
 
     _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "\nA: Select   B: Back   D-Pad: Move\n");
@@ -219,6 +232,7 @@ static int ShowSearchResultsUI(const GameList *list)
     int selected = 0;
     int scroll = 0;
     WORD previousButtons = 0;
+    WORD previousPreviousButtons = 0;
 
     RenderSearchResults(list, selected, scroll);
 
@@ -234,8 +248,7 @@ static int ShowSearchResultsUI(const GameList *list)
         }
 
         WORD buttons = state.Gamepad.wButtons;
-        WORD pressed = buttons & ~previousButtons;
-        previousButtons = buttons;
+        WORD pressed = buttons; // & ~previousButtons;
 
         if (pressed & XINPUT_GAMEPAD_A)
             return selected;
@@ -244,10 +257,22 @@ static int ShowSearchResultsUI(const GameList *list)
             return -1;
 
         if (pressed & XINPUT_GAMEPAD_DPAD_UP)
+        {
             selected--;
+            if (previousButtons != 0 && previousPreviousButtons == 0)
+            {
+                Sleep(500);
+            }
+        }
 
         if (pressed & XINPUT_GAMEPAD_DPAD_DOWN)
+        {
             selected++;
+            if (previousButtons != 0 && previousPreviousButtons == 0)
+            {
+                Sleep(500);
+            }
+        }
 
         if (selected < 0)
             selected = 0;
@@ -263,6 +288,9 @@ static int ShowSearchResultsUI(const GameList *list)
 
         if (pressed & (XINPUT_GAMEPAD_DPAD_UP | XINPUT_GAMEPAD_DPAD_DOWN))
             RenderSearchResults(list, selected, scroll);
+
+        previousPreviousButtons = previousButtons;
+        previousButtons = buttons;
 
         Sleep(50);
     }
@@ -285,11 +313,11 @@ static void RenderMediaResults(const MediaList *list, const char *gameName, int 
     for (int i = 0; i < (int)list->count; ++i)
     {
         _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "%c %2d. %s Disc %s version %s\n",
-                i == selected ? '>' : ' ',
-                i + 1,
-                gameName ? gameName : "Selected game",
-                list->items[i].disc,
-                list->items[i].version);
+                  i == selected ? '>' : ' ',
+                  i + 1,
+                  gameName ? gameName : "Selected game",
+                  list->items[i].disc,
+                  list->items[i].version);
     }
 
     _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "\nA: Select   B: Back   D-Pad: Move\n");
@@ -406,7 +434,8 @@ DWORD OpenKeyboardToString(
     ZeroMemory(&overlapped, sizeof(overlapped));
 
     overlapped.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-    if (!overlapped.hEvent) {
+    if (!overlapped.hEvent)
+    {
         dprintf("CreateEvent failed\n");
         return GetLastError();
     }
@@ -435,7 +464,8 @@ DWORD OpenKeyboardToString(
 
     CloseHandle(overlapped.hEvent);
 
-    if (result != ERROR_SUCCESS) {
+    if (result != ERROR_SUCCESS)
+    {
         dprintf("Failed to get search string from keyboard\n");
         dprintf("XGetOverlappedResult result: %lu / 0x%08X\n", result, result);
         dprintf("Keyboard extended: %lu / 0x%08X\n", extended, extended);
@@ -443,7 +473,8 @@ DWORD OpenKeyboardToString(
     }
 
     // ERROR_CANCELLED means the user backed out.
-    if (extended != ERROR_SUCCESS) {
+    if (extended != ERROR_SUCCESS)
+    {
         dprintf("Search canceled by user\n");
         return extended;
     }
@@ -460,20 +491,22 @@ int showUI(char *gameURL, int len, char *gameName, int gameNameLen)
     Sleep(1000);
 
     while (true)
-	{
-		XINPUT_STATE state;
-		ZeroMemory(&state, sizeof(state));
+    {
+        XINPUT_STATE state;
+        ZeroMemory(&state, sizeof(state));
 
-		if (XInputGetState(0, &state) == ERROR_SUCCESS &&
-			(state.Gamepad.wButtons == 0))
-		{
-			break;
-		} else {
+        if (XInputGetState(0, &state) == ERROR_SUCCESS &&
+            (state.Gamepad.wButtons == 0))
+        {
+            break;
+        }
+        else
+        {
             dprintf("Please release all controller buttons\n");
         }
-        
+
         Sleep(800);
-	}
+    }
 
     Sleep(250);
 
@@ -493,8 +526,10 @@ int showUI(char *gameURL, int len, char *gameName, int gameNameLen)
         return -1;
     }
 
-    if(downloadType == AUTO_UPDATE) {
-        if(runUpdate() != EXIT_FAILURE) {
+    if (downloadType == AUTO_UPDATE)
+    {
+        if (runUpdate() != EXIT_FAILURE)
+        {
             dprintf("Update Succeeded! \n");
         }
         return -1;
@@ -505,7 +540,8 @@ int showUI(char *gameURL, int len, char *gameName, int gameNameLen)
     if (keyboardResult != ERROR_SUCCESS || gameSearchString.empty())
     {
         dprintf("Failed to get search string from keyboard\n");
-        if(gameSearchString.empty()) {
+        if (gameSearchString.empty())
+        {
             dprintf("Search request was emtpy\n");
         }
 
@@ -515,26 +551,26 @@ int showUI(char *gameURL, int len, char *gameName, int gameNameLen)
 
     std::cout << "Text output: " << gameSearchString << "\n";
 
-    std::string searchURL = "https://vimm.net/vault/?p=list&system=Xbox360&q="; //default
+    std::string searchURL = "https://vimm.net/vault/?p=list&system=Xbox360&q="; // default
 
     switch (downloadType)
     {
     case ORIGINAL_XBOX:
         searchURL = "https://vimm.net/vault/?p=list&system=Xbox&q=";
         break;
-    
+
     case XBOX_360:
         searchURL = "https://vimm.net/vault/?p=list&system=Xbox360&q=";
         break;
-    
+
     case XBLA:
         searchURL = "https://vimm.net/vault/?p=list&system=X360-D&q=";
         break;
-    
+
     default:
         break;
     }
-    
+
     searchURL.append(UrlEncodeQuery(gameSearchString));
 
     if (downloadFileHTTPS(searchURL, "", buffer, &OUTPUT_BUFFER_SIZE, false, dprintf) != 200)
@@ -578,8 +614,7 @@ int showUI(char *gameURL, int len, char *gameName, int gameNameLen)
     ClearConsole();
     dprintf("Selected:\n%s\n\n%s\n", list.items[selected].name, selectedURL.c_str());
 
-
-	// Now download the selected game
+    // Now download the selected game
 
     OUTPUT_BUFFER_SIZE = HTML_BUFFER_CAPACITY;
     if (downloadFileHTTPS(selectedURL, "", buffer, &OUTPUT_BUFFER_SIZE, false, dprintf) != 200)

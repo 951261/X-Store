@@ -23,14 +23,14 @@
 #include <file-stuff.h>
 
 #ifdef _WIN32
-#  include <direct.h>
-#  include <io.h>
-#  define PATH_SEP '\\'
-#  define mkdir(p, m) _mkdir(p)
+#include <direct.h>
+#include <io.h>
+#define PATH_SEP '\\'
+#define mkdir(p, m) _mkdir(p)
 #else
-#  include <sys/stat.h>
-#  include <unistd.h>
-#  define PATH_SEP '/'
+#include <sys/stat.h>
+#include <unistd.h>
+#define PATH_SEP '/'
 #endif
 
 /* LZMA SDK headers (from the C/ subdirectory of the SDK) */
@@ -61,9 +61,7 @@
 #define kMaxPathBuffer 8192
 #define kMaxFatxNameLen 40
 
-
 #define snprintf _snprintf
-
 
 typedef struct
 {
@@ -103,7 +101,6 @@ typedef struct
     int split_output;
 } CSplitOutFile;
 
-
 unsigned long startTime = 0;
 
 /* -------------------------------------------------------------------------
@@ -112,18 +109,19 @@ unsigned long startTime = 0;
 
 static void print_usage(const char *prog)
 {
-    log_printf( "Usage: %s <archive.7z> [output_dir]\n", prog);
-    log_printf( "  archive.7z  - path to the 7z archive\n");
-    log_printf( "  output_dir  - destination directory (default: current dir)\n");
+    log_printf("Usage: %s <archive.7z> [output_dir]\n", prog);
+    log_printf("  archive.7z  - path to the 7z archive\n");
+    log_printf("  output_dir  - destination directory (default: current dir)\n");
 }
 
 static void format_size(UInt64 size, char *buf, size_t buf_size)
 {
-    static const char *const units[] = { "B", "KiB", "MiB", "GiB", "TiB" };
+    static const char *const units[] = {"B", "KiB", "MiB", "GiB", "TiB"};
     double value = (double)size;
     unsigned unit_index = 0;
 
-    while (value >= 1024.0 && unit_index + 1 < sizeof(units) / sizeof(units[0])) {
+    while (value >= 1024.0 && unit_index + 1 < sizeof(units) / sizeof(units[0]))
+    {
         value /= 1024.0;
         unit_index++;
     }
@@ -144,10 +142,12 @@ static void progress_render(CProgressInfo *progress, int force)
         return;
 
     now = clock();
-    if (!force) {
+    if (!force)
+    {
         const clock_t min_interval = CLOCKS_PER_SEC * 3;
         if (progress->completed_bytes < progress->next_update_at &&
-                now - progress->last_render < min_interval) {
+            now - progress->last_render < min_interval)
+        {
             return;
         }
     }
@@ -163,26 +163,30 @@ static void progress_render(CProgressInfo *progress, int force)
     format_size(progress->completed_bytes, done_buf, sizeof(done_buf));
     format_size(progress->total_bytes, total_buf, sizeof(total_buf));
 
-    if (progress->current_file && progress->current_file[0] != '\0') {
+    if (progress->current_file && progress->current_file[0] != '\0')
+    {
         snprintf(file_buf, sizeof(file_buf), "  %-.46s", progress->current_file);
-    } else {
+    }
+    else
+    {
         file_buf[0] = '\0';
     }
 
-    //calculate time remaining
+    // calculate time remaining
     unsigned long elapsedTime = (unsigned long)time(NULL) - startTime;
     unsigned long timeRemaining = (unsigned long)((double)elapsedTime / (percent / 100.00)) - elapsedTime;
 
-    int timeHours = timeRemaining / (60*60);
-    int timeMinutes = (timeRemaining % (60*60)) / 60; //minutes
-    int timeSec = (timeRemaining % (60*60)) % 60; //seconds
+    int timeHours = timeRemaining / (60 * 60);
+    int timeMinutes = (timeRemaining % (60 * 60)) / 60; // minutes
+    int timeSec = (timeRemaining % (60 * 60)) % 60;     // seconds
 
-    if(elapsedTime == 0) {
+    if (elapsedTime == 0)
+    {
         elapsedTime++;
     }
 
     // Extract speed in KiB/sec
-    unsigned long extractSpeed = (progress->completed_bytes / (1024) ) / elapsedTime;
+    unsigned long extractSpeed = (progress->completed_bytes / (1024)) / elapsedTime;
 
     // log_printf(
     //         "\r[%.*s%*s] %5.1f%%  %s / %s%s    Time Remaining: %dh, %dm, %ds\n",
@@ -191,7 +195,7 @@ static void progress_render(CProgressInfo *progress, int force)
     //         percent, done_buf, total_buf, file_buf, timeHours, timeMinutes, timeSec);
     // // fflush(stderr);
 
-    //print to display
+    // print to display
     dprintf("\r[%.*s%*s] %5.1f%%  %s / %s, %lu KiB/sec, Time Remaining: %dh, %dm, %ds\n",
             (int)filled, "##############################",
             (int)(kProgressBarWidth - filled), "",
@@ -269,7 +273,8 @@ static int has_numeric_volume_suffix(const char *path, char *base_path,
     if (!suffix || suffix == path || suffix[1] == '\0')
         return 0;
 
-    for (p = suffix + 1; *p != '\0'; p++) {
+    for (p = suffix + 1; *p != '\0'; p++)
+    {
         if (*p < '0' || *p > '9')
             return 0;
     }
@@ -292,7 +297,8 @@ static int build_numbered_path(const char *base_path, UInt32 part_index,
     int written = snprintf(path, path_size, "%s.%03u", base_path,
                            (unsigned)part_index);
 
-    if (written < 0 || (size_t)written >= path_size) {
+    if (written < 0 || (size_t)written >= path_size)
+    {
         errno = ENAMETOOLONG;
         return -1;
     }
@@ -310,8 +316,10 @@ static size_t path_root_len(const char *path)
     if (is_path_sep(path[0]))
         return 1;
 
-    for (i = 0; path[i] != '\0'; i++) {
-        if (path[i] == ':') {
+    for (i = 0; path[i] != '\0'; i++)
+    {
+        if (path[i] == ':')
+        {
             size_t root_len = i + 1;
             while (is_path_sep(path[root_len]))
                 root_len++;
@@ -359,13 +367,16 @@ static int make_dirs(const char *path)
     if (len == 0 || len <= root_len || path_is_current_dir(tmp))
         return 0;
 
-    for (p = tmp + root_len; *p; p++) {
-        if (is_path_sep(*p)) {
+    for (p = tmp + root_len; *p; p++)
+    {
+        if (is_path_sep(*p))
+        {
             *p = '\0';
 
             if (!path_is_current_dir(tmp) &&
-                    make_single_dir(tmp) != 0 &&
-                    errno != EEXIST) {
+                make_single_dir(tmp) != 0 &&
+                errno != EEXIST)
+            {
                 *p = PATH_SEP;
                 return -1;
             }
@@ -393,34 +404,42 @@ static int utf16_to_path(const UInt16 *src, char *dst, size_t dst_size, bool isX
     size_t out = 0;
     size_t component_len = 0;
 
-    for (i = 0; src[i] != 0 && out + 4 < dst_size; i++) {
+    for (i = 0; src[i] != 0 && out + 4 < dst_size; i++)
+    {
         UInt16 c = src[i];
 
         /* Replace '/' and '\' with the OS path separator */
-        if (c == '/' || c == '\\') {
+        if (c == '/' || c == '\\')
+        {
             dst[out++] = PATH_SEP;
             component_len = 0;
             continue;
         }
 
-        if (component_len >= kMaxFatxNameLen && isXBLA == true) //truncate file and folder names IF it is an XBLA game
+        if (component_len >= kMaxFatxNameLen && isXBLA == true) // truncate file and folder names IF it is an XBLA game
             continue;
 
         component_len++;
 
         /* Encode to UTF-8 */
-        if (c < 0x80) {
+        if (c < 0x80)
+        {
             dst[out++] = (char)c;
-        } else if (c < 0x800) {
+        }
+        else if (c < 0x800)
+        {
             dst[out++] = (char)(0xC0 | (c >> 6));
             dst[out++] = (char)(0x80 | (c & 0x3F));
-        } else {
+        }
+        else
+        {
             dst[out++] = (char)(0xE0 | (c >> 12));
             dst[out++] = (char)(0x80 | ((c >> 6) & 0x3F));
             dst[out++] = (char)(0x80 | (c & 0x3F));
         }
 
-        if (IsInvalidFolderChar(dst[out - 1]) == true) {
+        if (IsInvalidFolderChar(dst[out - 1]) == true)
+        {
             dst[out - 1] = ' ';
         }
     }
@@ -435,25 +454,29 @@ static int prepare_output_path(const char *path)
     char *last_sep;
     size_t path_len;
 
-    if (!path) {
+    if (!path)
+    {
         errno = EINVAL;
         return -1;
     }
 
     path_len = strlen(path);
-    if (path_len >= sizeof(dir)) {
-        log_printf( "Error: output path is too long: '%s'\n", path);
+    if (path_len >= sizeof(dir))
+    {
+        log_printf("Error: output path is too long: '%s'\n", path);
         errno = ENAMETOOLONG;
         return -1;
     }
 
     memcpy(dir, path, path_len + 1);
     last_sep = strrchr(dir, PATH_SEP);
-    if (last_sep && last_sep != dir) {
+    if (last_sep && last_sep != dir)
+    {
         *last_sep = '\0';
-        if (make_dirs(dir) != 0 && errno != EEXIST) {
-            log_printf( "Error: cannot create directory '%s': %s\n",
-                    dir, strerror(errno));
+        if (make_dirs(dir) != 0 && errno != EEXIST)
+        {
+            log_printf("Error: cannot create directory '%s': %s\n",
+                       dir, strerror(errno));
             return -1;
         }
     }
@@ -469,9 +492,10 @@ static int open_output_path(CSzFile *file, const char *path)
         return -1;
 
     wres = OutFile_Open(file, path);
-    if (wres != 0) {
-        log_printf( "Error: cannot open '%s' for writing (WRes=%u)\n",
-                path, (unsigned)wres);
+    if (wres != 0)
+    {
+        log_printf("Error: cannot open '%s' for writing (WRes=%u)\n",
+                   path, (unsigned)wres);
         errno = (int)wres;
         return -1;
     }
@@ -496,16 +520,21 @@ static int file_exists(const char *path)
 
 static int split_output_open_current(CSplitOutFile *out)
 {
-    if (out->split_output) {
+    if (out->split_output)
+    {
         if (build_numbered_path(out->base_path, out->part_index,
-                                out->current_path, sizeof(out->current_path)) != 0) {
-            log_printf( "Error: output path is too long: '%s'\n", out->base_path);
+                                out->current_path, sizeof(out->current_path)) != 0)
+        {
+            log_printf("Error: output path is too long: '%s'\n", out->base_path);
             return -1;
         }
-    } else {
+    }
+    else
+    {
         size_t path_len = strlen(out->base_path);
-        if (path_len >= sizeof(out->current_path)) {
-            log_printf( "Error: output path is too long: '%s'\n", out->base_path);
+        if (path_len >= sizeof(out->current_path))
+        {
+            log_printf("Error: output path is too long: '%s'\n", out->base_path);
             errno = ENAMETOOLONG;
             return -1;
         }
@@ -527,8 +556,9 @@ static int split_output_open(CSplitOutFile *out, const char *path,
     memset(out, 0, sizeof(*out));
     File_Construct(&out->file);
 
-    if (path_len >= sizeof(out->base_path)) {
-        log_printf( "Error: output path is too long: '%s'\n", path);
+    if (path_len >= sizeof(out->base_path))
+    {
+        log_printf("Error: output path is too long: '%s'\n", path);
         errno = ENAMETOOLONG;
         return -1;
     }
@@ -545,9 +575,10 @@ static int split_output_close(CSplitOutFile *out)
     WRes wres;
 
     wres = File_Close(&out->file);
-    if (wres != 0) {
-        log_printf( "Error: cannot close '%s' (WRes=%u)\n",
-                out->current_path, (unsigned)wres);
+    if (wres != 0)
+    {
+        log_printf("Error: cannot close '%s' (WRes=%u)\n",
+                   out->current_path, (unsigned)wres);
         File_Construct(&out->file);
         return -1;
     }
@@ -567,13 +598,16 @@ static int split_output_advance(CSplitOutFile *out)
 
 static int write_chunk(CSplitOutFile *out, const Byte *data, size_t size)
 {
-    while (size > 0) {
+    while (size > 0)
+    {
         size_t chunk = size;
 
-        if (out->split_output) {
+        if (out->split_output)
+        {
             UInt64 remaining = kFat32SplitThreshold - out->current_part_size;
 
-            if (remaining == 0) {
+            if (remaining == 0)
+            {
                 if (split_output_advance(out) != 0)
                     return -1;
                 remaining = kFat32SplitThreshold;
@@ -589,9 +623,10 @@ static int write_chunk(CSplitOutFile *out, const Byte *data, size_t size)
         {
             size_t processed = chunk;
             WRes wres = File_Write(&out->file, data, &processed);
-            if (wres != 0 || processed != chunk) {
-                log_printf( "Error: write failed for '%s' (WRes=%u)\n",
-                        out->current_path, (unsigned)wres);
+            if (wres != 0 || processed != chunk)
+            {
+                log_printf("Error: write failed for '%s' (WRes=%u)\n",
+                           out->current_path, (unsigned)wres);
                 return -1;
             }
         }
@@ -611,7 +646,8 @@ static UInt32 joined_stream_find_part(const CJoinedInStream *stream, UInt64 pos)
     if (stream->num_parts == 0)
         return 0;
 
-    if (stream->current_part < stream->num_parts) {
+    if (stream->current_part < stream->num_parts)
+    {
         const CArchivePart *part = &stream->parts[stream->current_part];
         if (pos >= part->start_offset && pos < part->start_offset + part->size)
             return stream->current_part;
@@ -620,13 +656,15 @@ static UInt32 joined_stream_find_part(const CJoinedInStream *stream, UInt64 pos)
     if (pos >= stream->total_size)
         return stream->num_parts - 1;
 
-    for (i = stream->current_part; i < stream->num_parts; i++) {
+    for (i = stream->current_part; i < stream->num_parts; i++)
+    {
         UInt64 part_end = stream->parts[i].start_offset + stream->parts[i].size;
         if (pos >= stream->parts[i].start_offset && pos < part_end)
             return i;
     }
 
-    for (i = 0; i < stream->current_part; i++) {
+    for (i = 0; i < stream->current_part; i++)
+    {
         UInt64 part_end = stream->parts[i].start_offset + stream->parts[i].size;
         if (pos >= stream->parts[i].start_offset && pos < part_end)
             return i;
@@ -643,7 +681,8 @@ static SRes joined_stream_read(ISeekInStreamPtr pp, void *buf, size_t *size)
 
     *size = 0;
 
-    while (remaining > 0 && stream->pos < stream->total_size) {
+    while (remaining > 0 && stream->pos < stream->total_size)
+    {
         CArchivePart *part;
         UInt64 local_offset;
         UInt64 available;
@@ -662,14 +701,16 @@ static SRes joined_stream_read(ISeekInStreamPtr pp, void *buf, size_t *size)
 
         seek_pos = (Int64)local_offset;
         stream->wres = File_Seek(&part->file, &seek_pos, SZ_SEEK_SET);
-        if (stream->wres != 0) {
+        if (stream->wres != 0)
+        {
             dprintf("ERROR: Failed File_Seek to %lld from SZ_SEEK_SET failed \n", local_offset);
             return SZ_ERROR_READ;
         }
 
         processed = chunk;
         stream->wres = File_Read(&part->file, dst, &processed);
-        if (stream->wres != 0) {
+        if (stream->wres != 0)
+        {
             dprintf("ERROR: File_Read failed to read %zu bytes \n", chunk);
             return SZ_ERROR_READ;
         }
@@ -691,23 +732,25 @@ static SRes joined_stream_seek(ISeekInStreamPtr pp, Int64 *pos, ESzSeek origin)
     CJoinedInStream *stream = (CJoinedInStream *)pp;
     Int64 new_pos;
 
-    switch ((int)origin) {
-        case SZ_SEEK_SET:
-            new_pos = *pos;
-            break;
-        case SZ_SEEK_CUR:
-            new_pos = (Int64)stream->pos + *pos;
-            break;
-        case SZ_SEEK_END:
-            new_pos = (Int64)stream->total_size + *pos;
-            break;
-        default:
-            stream->wres = EINVAL;
-            dprintf("ERROR: join_stream_seek failed, invalid origin: %d \n", ((int)origin) );
-            return SZ_ERROR_READ;
+    switch ((int)origin)
+    {
+    case SZ_SEEK_SET:
+        new_pos = *pos;
+        break;
+    case SZ_SEEK_CUR:
+        new_pos = (Int64)stream->pos + *pos;
+        break;
+    case SZ_SEEK_END:
+        new_pos = (Int64)stream->total_size + *pos;
+        break;
+    default:
+        stream->wres = EINVAL;
+        dprintf("ERROR: join_stream_seek failed, invalid origin: %d \n", ((int)origin));
+        return SZ_ERROR_READ;
     }
 
-    if (new_pos < 0) {
+    if (new_pos < 0)
+    {
         stream->wres = EINVAL;
         dprintf("ERROR: invalid read position: %lld \n", new_pos);
         return SZ_ERROR_READ;
@@ -735,7 +778,8 @@ static int joined_stream_add_part(CJoinedInStream *stream, const char *path)
 
     parts = (CArchivePart *)realloc(stream->parts,
                                     (stream->num_parts + 1) * sizeof(*parts));
-    if (!parts) {
+    if (!parts)
+    {
         errno = ENOMEM;
         return -1;
     }
@@ -746,16 +790,18 @@ static int joined_stream_add_part(CJoinedInStream *stream, const char *path)
     File_Construct(&part->file);
 
     wres = InFile_Open(&part->file, path);
-    if (wres != 0) {
-        log_printf( "Error: cannot open archive part '%s' (WRes=%u)\n",
-                path, (unsigned)wres);
+    if (wres != 0)
+    {
+        log_printf("Error: cannot open archive part '%s' (WRes=%u)\n",
+                   path, (unsigned)wres);
         return -1;
     }
 
     wres = File_GetLength(&part->file, &part->size);
-    if (wres != 0) {
-        log_printf( "Error: cannot get size of archive part '%s' (WRes=%u)\n",
-                path, (unsigned)wres);
+    if (wres != 0)
+    {
+        log_printf("Error: cannot get size of archive part '%s' (WRes=%u)\n",
+                   path, (unsigned)wres);
         File_Close(&part->file);
         File_Construct(&part->file);
         return -1;
@@ -786,17 +832,20 @@ static int joined_stream_open(CJoinedInStream *stream, const char *archive_path)
 
     joined_stream_init(stream);
 
-    if (has_numeric_volume_suffix(archive_path, base_path, sizeof(base_path))) {
+    if (has_numeric_volume_suffix(archive_path, base_path, sizeof(base_path)))
+    {
         UInt32 part_index;
 
-        for (part_index = 1; ; part_index++) {
+        for (part_index = 1;; part_index++)
+        {
             char volume_path[kMaxPathBuffer];
 
             if (build_numbered_path(base_path, part_index,
                                     volume_path, sizeof(volume_path)) != 0)
                 return -1;
 
-            if (!file_exists(volume_path)) {
+            if (!file_exists(volume_path))
+            {
                 if (part_index == 1)
                     return -1;
                 break;
@@ -817,7 +866,8 @@ static SRes decode_copy_to_file(ILookInStreamPtr in_stream, UInt64 in_size,
                                 CProgressInfo *progress,
                                 const char *current_file)
 {
-    while (in_size > 0) {
+    while (in_size > 0)
+    {
         const void *in_buf = NULL;
         size_t chunk = kInputBufSize;
 
@@ -856,12 +906,14 @@ static SRes decode_lzma_to_file(const Byte *props, unsigned props_size,
     LzmaDec_Init(&state);
 
     out_buf = (Byte *)ISzAlloc_Alloc(alloc_main, kOutputBufSize);
-    if (!out_buf) {
+    if (!out_buf)
+    {
         LzmaDec_Free(&state, alloc_main);
         return SZ_ERROR_MEM;
     }
 
-    for (;;) {
+    for (;;)
+    {
         const void *in_buf = NULL;
         size_t lookahead = kInputBufSize;
         SizeT in_processed;
@@ -875,7 +927,8 @@ static SRes decode_lzma_to_file(const Byte *props, unsigned props_size,
         RINOK(ILookInStream_Look(in_stream, &in_buf, &lookahead));
 
         in_processed = (SizeT)lookahead;
-        if ((UInt64)out_processed > out_size) {
+        if ((UInt64)out_processed > out_size)
+        {
             out_processed = (SizeT)out_size;
             finish_mode = LZMA_FINISH_END;
         }
@@ -884,8 +937,10 @@ static SRes decode_lzma_to_file(const Byte *props, unsigned props_size,
                                   (const Byte *)in_buf, &in_processed,
                                   finish_mode, &status);
 
-        if (out_processed != 0) {
-            if (write_chunk(out_file, out_buf, out_processed) != 0) {
+        if (out_processed != 0)
+        {
+            if (write_chunk(out_file, out_buf, out_processed) != 0)
+            {
                 res = SZ_ERROR_WRITE;
                 break;
             }
@@ -896,9 +951,11 @@ static SRes decode_lzma_to_file(const Byte *props, unsigned props_size,
 
         in_size -= in_processed;
 
-        if (in_processed != 0) {
+        if (in_processed != 0)
+        {
             SRes skip_res = ILookInStream_Skip(in_stream, in_processed);
-            if (skip_res != SZ_OK) {
+            if (skip_res != SZ_OK)
+            {
                 res = skip_res;
                 break;
             }
@@ -907,17 +964,19 @@ static SRes decode_lzma_to_file(const Byte *props, unsigned props_size,
         if (res != SZ_OK)
             break;
 
-        if (status == LZMA_STATUS_FINISHED_WITH_MARK) {
+        if (status == LZMA_STATUS_FINISHED_WITH_MARK)
+        {
             if (out_size != 0 || in_size != 0)
                 res = SZ_ERROR_DATA;
             break;
         }
 
         if (out_size == 0 && in_size == 0 &&
-                status == LZMA_STATUS_MAYBE_FINISHED_WITHOUT_MARK)
+            status == LZMA_STATUS_MAYBE_FINISHED_WITHOUT_MARK)
             break;
 
-        if (in_processed == 0 && out_processed == 0) {
+        if (in_processed == 0 && out_processed == 0)
+        {
             res = SZ_ERROR_DATA;
             break;
         }
@@ -947,12 +1006,14 @@ static SRes decode_lzma2_to_file(const Byte *props, unsigned props_size,
     Lzma2Dec_Init(&state);
 
     out_buf = (Byte *)ISzAlloc_Alloc(alloc_main, kOutputBufSize);
-    if (!out_buf) {
+    if (!out_buf)
+    {
         Lzma2Dec_Free(&state, alloc_main);
         return SZ_ERROR_MEM;
     }
 
-    for (;;) {
+    for (;;)
+    {
         const void *in_buf = NULL;
         size_t lookahead = kInputBufSize;
         SizeT in_processed;
@@ -966,7 +1027,8 @@ static SRes decode_lzma2_to_file(const Byte *props, unsigned props_size,
         RINOK(ILookInStream_Look(in_stream, &in_buf, &lookahead));
 
         in_processed = (SizeT)lookahead;
-        if ((UInt64)out_processed > out_size) {
+        if ((UInt64)out_processed > out_size)
+        {
             out_processed = (SizeT)out_size;
             finish_mode = LZMA_FINISH_END;
         }
@@ -975,8 +1037,10 @@ static SRes decode_lzma2_to_file(const Byte *props, unsigned props_size,
                                    (const Byte *)in_buf, &in_processed,
                                    finish_mode, &status);
 
-        if (out_processed != 0) {
-            if (write_chunk(out_file, out_buf, out_processed) != 0) {
+        if (out_processed != 0)
+        {
+            if (write_chunk(out_file, out_buf, out_processed) != 0)
+            {
                 res = SZ_ERROR_WRITE;
                 break;
             }
@@ -987,9 +1051,11 @@ static SRes decode_lzma2_to_file(const Byte *props, unsigned props_size,
 
         in_size -= in_processed;
 
-        if (in_processed != 0) {
+        if (in_processed != 0)
+        {
             SRes skip_res = ILookInStream_Skip(in_stream, in_processed);
-            if (skip_res != SZ_OK) {
+            if (skip_res != SZ_OK)
+            {
                 res = skip_res;
                 break;
             }
@@ -998,13 +1064,15 @@ static SRes decode_lzma2_to_file(const Byte *props, unsigned props_size,
         if (res != SZ_OK)
             break;
 
-        if (status == LZMA_STATUS_FINISHED_WITH_MARK) {
+        if (status == LZMA_STATUS_FINISHED_WITH_MARK)
+        {
             if (out_size != 0 || in_size != 0)
                 res = SZ_ERROR_DATA;
             break;
         }
 
-        if (in_processed == 0 && out_processed == 0) {
+        if (in_processed == 0 && out_processed == 0)
+        {
             res = SZ_ERROR_DATA;
             break;
         }
@@ -1031,11 +1099,18 @@ static SRes extract_file_streaming(const CSzArEx *db, ILookInStreamPtr in_stream
 
     memset(&out_file, 0, sizeof(out_file));
 
-    if (folder_index == (UInt32)-1) {
+    if (folder_index == (UInt32)-1)
+    {
         if (split_output_open(&out_file, full_path, 0) != 0)
+        {
+            dprintf("ERROR: Failed to open split file %s \n", full_path);
             return SZ_ERROR_WRITE;
+        }
         if (split_output_close(&out_file) != 0)
+        {
+            dprintf("ERROR: Failed to close %s \n", full_path);
             return SZ_ERROR_WRITE;
+        }
         return SZ_OK;
     }
 
@@ -1061,9 +1136,9 @@ static SRes extract_file_streaming(const CSzArEx *db, ILookInStreamPtr in_stream
         RINOK(SzGetNextFolderItem(&folder, &sd));
 
         if (sd.Size != 0 ||
-                folder.UnpackStream != db->db.FoToMainUnpackSizeIndex[folder_index] ||
-                folder.NumCoders != 1 ||
-                folder.NumPackStreams != 1)
+            folder.UnpackStream != db->db.FoToMainUnpackSizeIndex[folder_index] ||
+            folder.NumCoders != 1 ||
+            folder.NumPackStreams != 1)
             return SZ_ERROR_UNSUPPORTED;
 
         coder = &folder.Coders[0];
@@ -1076,36 +1151,43 @@ static SRes extract_file_streaming(const CSzArEx *db, ILookInStreamPtr in_stream
 
         RINOK(LookInStream_SeekTo(in_stream, db->dataPos + offset));
 
-        switch (coder->MethodID) {
-            case kMethodCopy:
-                if (in_size != out_size)
-                    res = SZ_ERROR_DATA;
-                else
-                    res = decode_copy_to_file(in_stream, in_size, &out_file, &crc,
-                                              progress, display_name);
-                break;
-            case kMethodLzma:
-                res = decode_lzma_to_file(folder_data + coder->PropsOffset,
-                                          coder->PropsSize, in_stream, in_size,
-                                          out_size, &out_file, alloc_main, &crc,
+        switch (coder->MethodID)
+        {
+        case kMethodCopy:
+            if (in_size != out_size)
+                res = SZ_ERROR_DATA;
+            else
+                res = decode_copy_to_file(in_stream, in_size, &out_file, &crc,
                                           progress, display_name);
-                break;
-            case kMethodLzma2:
-                res = decode_lzma2_to_file(folder_data + coder->PropsOffset,
-                                           coder->PropsSize, in_stream, in_size,
-                                           out_size, &out_file, alloc_main, &crc,
-                                           progress, display_name);
-                break;
-            default:
-                res = SZ_ERROR_UNSUPPORTED;
-                break;
+            break;
+        case kMethodLzma:
+            res = decode_lzma_to_file(folder_data + coder->PropsOffset,
+                                      coder->PropsSize, in_stream, in_size,
+                                      out_size, &out_file, alloc_main, &crc,
+                                      progress, display_name);
+            break;
+        case kMethodLzma2:
+            res = decode_lzma2_to_file(folder_data + coder->PropsOffset,
+                                       coder->PropsSize, in_stream, in_size,
+                                       out_size, &out_file, alloc_main, &crc,
+                                       progress, display_name);
+            break;
+        default:
+            res = SZ_ERROR_UNSUPPORTED;
+            break;
+        }
+
+        if (res != SZ_OK)
+        {
+            dprintf("ERROR: extract_file_streaming failed with error code %d. Method: %lu \n", ((int)res), ( (unsigned long)(coder->MethodID) ) );
         }
     }
 
     if (split_output_close(&out_file) != 0 && res == SZ_OK)
         res = SZ_ERROR_WRITE;
 
-    if (res == SZ_OK && SzBitWithVals_Check(&db->CRCs, file_index)) {
+    if (res == SZ_OK && SzBitWithVals_Check(&db->CRCs, file_index))
+    {
         crc = CRC_GET_DIGEST(crc);
         if (crc != db->CRCs.Vals[file_index])
             res = SZ_ERROR_CRC;
@@ -1113,7 +1195,6 @@ static SRes extract_file_streaming(const CSzArEx *db, ILookInStreamPtr in_stream
 
     return res;
 }
-
 
 static int ascii_tolower(int c)
 {
@@ -1141,9 +1222,11 @@ static int ends_with_case_insensitive(const char *text, const char *suffix)
 
     offset = text_len - suffix_len;
 
-    for (i = 0; i < suffix_len; i++) {
+    for (i = 0; i < suffix_len; i++)
+    {
         if (ascii_tolower((unsigned char)text[offset + i]) !=
-            ascii_tolower((unsigned char)suffix[i])) {
+            ascii_tolower((unsigned char)suffix[i]))
+        {
             return 0;
         }
     }
@@ -1161,11 +1244,11 @@ int decompressSevenZipFile(const char *inputFile, const char *outputPath, const 
     const char *out_dir;
 
     CJoinedInStream archive_stream; /* Handles single and split archives */
-    CLookToRead2   look_stream;   /* Buffered look-ahead stream      */
-    CSzArEx        db;            /* 7z archive database             */
+    CLookToRead2 look_stream;       /* Buffered look-ahead stream      */
+    CSzArEx db;                     /* 7z archive database             */
 
-    ISzAlloc alloc_imp      = { SzAlloc,     SzFree     };
-    ISzAlloc alloc_temp_imp = { SzAllocTemp, SzFreeTemp };
+    ISzAlloc alloc_imp = {SzAlloc, SzFree};
+    ISzAlloc alloc_temp_imp = {SzAllocTemp, SzFreeTemp};
 
     SRes res;
     UInt32 i;
@@ -1180,11 +1263,11 @@ int decompressSevenZipFile(const char *inputFile, const char *outputPath, const 
     //     return EXIT_FAILURE;
     // }
 
-    //get the start time of the code
-    
+    // get the start time of the code
+
     startTime = (unsigned long)time(NULL);
-    
-    archive_path = inputFile; //argv[1];
+
+    archive_path = inputFile; // argv[1];
 
     out_dir = (outputPath && outputPath[0] != '\0') ? outputPath : ".";
 
@@ -1204,8 +1287,9 @@ int decompressSevenZipFile(const char *inputFile, const char *outputPath, const 
     {
         /* Allocate the look-ahead buffer manually so we can free it later */
         look_stream.buf = (Byte *)ISzAlloc_Alloc(&alloc_imp, kInputBufSize);
-        if (!look_stream.buf) {
-            log_printf( "Error: out of memory\n");
+        if (!look_stream.buf)
+        {
+            log_printf("Error: out of memory\n");
             joined_stream_close(&archive_stream);
             return EXIT_FAILURE;
         }
@@ -1217,11 +1301,12 @@ int decompressSevenZipFile(const char *inputFile, const char *outputPath, const 
     /* ---- parse the 7z header ---- */
     SzArEx_Init(&db);
     res = SzArEx_Open(&db, &look_stream.vt, &alloc_imp, &alloc_temp_imp);
-    if (res != SZ_OK) {
-        log_printf( "Error: SzArEx_Open failed (SRes=%d).\n"
-                        "  The file may not be a valid .7z archive, or it may use\n"
-                        "  encryption / a compression method other than LZMA/LZMA2.\n",
-                res);
+    if (res != SZ_OK)
+    {
+        log_printf("Error: SzArEx_Open failed (SRes=%d).\n"
+                   "  The file may not be a valid .7z archive, or it may use\n"
+                   "  encryption / a compression method other than LZMA/LZMA2.\n",
+                   res);
         errors = 1;
         goto cleanup;
     }
@@ -1230,7 +1315,8 @@ int decompressSevenZipFile(const char *inputFile, const char *outputPath, const 
     dprintf("Files   : %u\n", (unsigned)db.NumFiles);
     dprintf("Output  : %s\n\n", out_dir);
 
-    for (i = 0; i < db.NumFiles; i++) {
+    for (i = 0; i < db.NumFiles; i++)
+    {
         if (!SzArEx_IsDir(&db, i))
             total_bytes += SzArEx_GetFileSize(&db, i);
     }
@@ -1238,29 +1324,32 @@ int decompressSevenZipFile(const char *inputFile, const char *outputPath, const 
     progress_init(&progress, total_bytes);
 
     /* ---- iterate over every entry in the archive ---- */
-    for (i = 0; i < db.NumFiles; i++) {
+    for (i = 0; i < db.NumFiles; i++)
+    {
 
-        char    name_buf[4096];
-        char    full_path[8192];
-        int     is_dir;
-        size_t  utf16_len;
+        char name_buf[4096];
+        char full_path[8192];
+        int is_dir;
+        size_t utf16_len;
         UInt16 *utf16_name = NULL;
-        UInt64  file_size;
+        UInt64 file_size;
 
         /* Build the output path from the UTF-16 name stored in the archive */
         utf16_len = SzArEx_GetFileNameUtf16(&db, i, NULL);
         utf16_name = (UInt16 *)ISzAlloc_Alloc(&alloc_imp,
                                               utf16_len * sizeof(*utf16_name));
-        if (!utf16_name) {
-            log_printf( "Error: out of memory while reading file name\n");
+        if (!utf16_name)
+        {
+            log_printf("Error: out of memory while reading file name\n");
             errors++;
             continue;
         }
 
         SzArEx_GetFileNameUtf16(&db, i, utf16_name);
-        if (utf16_to_path(utf16_name, name_buf, sizeof(name_buf), isXBLA) != 0) {
-            log_printf( "Error: file name is too long to extract entry %u\n",
-                    (unsigned)i);
+        if (utf16_to_path(utf16_name, name_buf, sizeof(name_buf), isXBLA) != 0)
+        {
+            log_printf("Error: file name is too long to extract entry %u\n",
+                       (unsigned)i);
             ISzAlloc_Free(&alloc_imp, utf16_name);
             errors++;
             continue;
@@ -1271,7 +1360,8 @@ int decompressSevenZipFile(const char *inputFile, const char *outputPath, const 
         is_dir = SzArEx_IsDir(&db, i);
         file_size = SzArEx_GetFileSize(&db, i);
 
-        if (!is_dir && ends_with_case_insensitive(name_buf, ".iso")) {
+        if (!is_dir && ends_with_case_insensitive(name_buf, ".iso"))
+        {
             static int isoNum = 0;
             sprintf(name_buf, "tmp_%d.iso", isoNum);
             isoNum++;
@@ -1279,13 +1369,15 @@ int decompressSevenZipFile(const char *inputFile, const char *outputPath, const 
 
         snprintf(full_path, sizeof(full_path), "%s%c%s", out_dir, PATH_SEP, name_buf);
 
-        if (is_dir) {
+        if (is_dir)
+        {
             /* Create directory entry */
             log_printf("  d  %s\n", name_buf);
 
-            if (make_dirs(full_path) != 0 && errno != EEXIST) {
-                log_printf( "Warning: cannot create directory '%s': %s\n",
-                        full_path, strerror(errno));
+            if (make_dirs(full_path) != 0 && errno != EEXIST)
+            {
+                log_printf("Warning: cannot create directory '%s': %s\n",
+                           full_path, strerror(errno));
             }
             continue;
         }
@@ -1293,28 +1385,30 @@ int decompressSevenZipFile(const char *inputFile, const char *outputPath, const 
         /* ---- decompress the file directly to disk ---- */
         res = extract_file_streaming(&db, &look_stream.vt, i, full_path,
                                      name_buf, &alloc_imp, &progress);
-        if (res != SZ_OK) {
-            log_printf( "Error: failed to extract '%s' (SRes=%d)\n",
-                    name_buf, res);
-            if (res == SZ_ERROR_UNSUPPORTED) {
+        if (res != SZ_OK)
+        {
+            log_printf("Error: failed to extract '%s' (SRes=%d)\n",
+                       name_buf, res);
+            if (res == SZ_ERROR_UNSUPPORTED)
+            {
                 log_printf(
-                        "  Streaming mode supports archives where each file has its own\n"
-                        "  folder/block and uses Copy, LZMA, or LZMA2 with no extra filters.\n");
+                    "  Streaming mode supports archives where each file has its own\n"
+                    "  folder/block and uses Copy, LZMA, or LZMA2 with no extra filters.\n");
             }
             errors++;
             continue;
         }
 
         log_printf("  x  %s  (%llu bytes)\n",
-               name_buf, (unsigned long long)file_size);
+                   name_buf, (unsigned long long)file_size);
     }
 
     progress_finish(&progress, errors == 0);
 
     log_printf("\n%s  (%d error%s)\n",
-           errors ? "Done with errors" : "Done",
-           errors,
-           errors == 1 ? "" : "s");
+               errors ? "Done with errors" : "Done",
+               errors,
+               errors == 1 ? "" : "s");
 
 cleanup:
     /* Free the archive database */
