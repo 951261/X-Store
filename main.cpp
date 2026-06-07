@@ -425,12 +425,6 @@ int getGame(std::string URL, const std::string sevenZipFile, const std::string i
 	return EXIT_SUCCESS;
 }
 
-static bool IsInvalidFolderChar(char c)
-{
-	return c == '<' || c == '>' || c == ':' || c == '"' ||
-		   c == '/' || c == '\\' || c == '|' || c == '?' || c == '*' || c == '+' || c == ',' || c == '=';
-}
-
 static void MakeSafeFolderName(const char *gameName, char *folderName, int folderNameLen)
 {
 	if (!folderName || folderNameLen <= 0)

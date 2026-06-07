@@ -49,4 +49,6 @@ int splitPathFolderFile(const char *path,
 
 int findFile(const char *folder, char *isoFile, int len, const char *suffix);
 
+bool IsInvalidFolderChar(char c);
+
 #endif

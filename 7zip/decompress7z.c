@@ -20,6 +20,7 @@
 #include <time.h>
 
 #include "../OutputConsole.h"
+#include <file-stuff.h>
 
 #ifdef _WIN32
 #  include <direct.h>
@@ -417,6 +418,10 @@ static int utf16_to_path(const UInt16 *src, char *dst, size_t dst_size, bool isX
             dst[out++] = (char)(0xE0 | (c >> 12));
             dst[out++] = (char)(0x80 | ((c >> 6) & 0x3F));
             dst[out++] = (char)(0x80 | (c & 0x3F));
+        }
+
+        if (IsInvalidFolderChar(dst[out - 1]) == true) {
+            dst[out - 1] = ' ';
         }
     }
 

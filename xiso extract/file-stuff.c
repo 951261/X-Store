@@ -54,6 +54,10 @@ getcwd: duh!
 // #include <errno.h>
 #include <stdint.h>
 
+#ifndef __cplusplus
+#include <stdbool.h>
+#endif
+
 static int xbox_open_set_errno(DWORD err)
 {
     switch (err)
@@ -859,4 +863,10 @@ int findFile(const char *folder, char *isoFile, int len, const char *suffix)
 	return -1;
 }
 
+
+bool IsInvalidFolderChar(char c)
+{
+	return c == '<' || c == '>' || c == ':' || c == '"' ||
+		   c == '/' || c == '\\' || c == '|' || c == '?' || c == '*' || c == '+' || c == ',' || c == '=';
+}
 
