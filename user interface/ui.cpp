@@ -149,6 +149,7 @@ static enum DownloadType ShowDownloadTypeMenu()
             {
                 Sleep(500);
             }
+            XInputGetState(0, &state);
         }
 
         if (pressed & XINPUT_GAMEPAD_DPAD_DOWN)
@@ -158,6 +159,7 @@ static enum DownloadType ShowDownloadTypeMenu()
             {
                 Sleep(500);
             }
+            XInputGetState(0, &state);
         }
 
         if (selected < 0)
@@ -263,6 +265,7 @@ static int ShowSearchResultsUI(const GameList *list)
             {
                 Sleep(500);
             }
+            XInputGetState(0, &state); // clear controller input buffer
         }
 
         if (pressed & XINPUT_GAMEPAD_DPAD_DOWN)
@@ -272,6 +275,7 @@ static int ShowSearchResultsUI(const GameList *list)
             {
                 Sleep(500);
             }
+            XInputGetState(0, &state);
         }
 
         if (selected < 0)
