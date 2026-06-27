@@ -37,6 +37,8 @@ Currently, this program supports downloading directly from Vimms Lair. While the
 ## Updating
 If you are on version 0.2.3 or later, you can update to the latest version by selecting `Update X Store` when you first start the program. If you are on an earlier version, download the latest version from the releases page, and replace X-Store.xex on your console with the latest version this github repo. 
 
+**NOTE:** It seems some of the certificates I am using have expired, so at this stage, the automatic updates are not working. Since I have not released a new version in a while, this will not be an isssue, but just know that when I do release a new version, automated updates will not work. 
+
 ## Troubleshooting
 
 | | |
