@@ -306,6 +306,7 @@ xm_end_chain(const br_x509_class **ctx)
 			cc->err = BR_ERR_X509_EMPTY_CHAIN;
 		} else {
 			cc->err = BR_ERR_X509_NOT_TRUSTED;
+			return 0; // WARNING-ONLY BYPASS: allow untrusted chain
 		}
 	} else if (cc->err == BR_ERR_X509_OK) {
 		return 0;

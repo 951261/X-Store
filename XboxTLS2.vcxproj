@@ -96,7 +96,9 @@
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>$(IncludePath)</IncludePath>
     <LibraryPath>$(LibraryPath)</LibraryPath>
-    <RemoteRoot>Usb1:\Development</RemoteRoot>
+    <RemoteRoot>Hdd1:\Development</RemoteRoot>
+    <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
+    <ImageXexOutput>$(OutDir)X-Store.xex</ImageXexOutput>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_LTCG|Xbox 360'">
     <LinkIncremental>false</LinkIncremental>

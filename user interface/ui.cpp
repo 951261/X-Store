@@ -122,9 +122,10 @@ static enum DownloadType ShowDownloadTypeMenu()
 
     RenderDownloadTypeMenu(selected);
 
+    XINPUT_STATE state;
+
     while (true)
     {
-        XINPUT_STATE state;
         ZeroMemory(&state, sizeof(state));
 
         if (XInputGetState(0, &state) != ERROR_SUCCESS)
@@ -144,20 +145,22 @@ static enum DownloadType ShowDownloadTypeMenu()
 
         if (pressed & XINPUT_GAMEPAD_DPAD_UP)
         {
-            selected--;
             if (previousButtons != 0 && previousPreviousButtons == 0)
             {
-                Sleep(500);
+                Sleep(400);
+            } else {
+                selected--;
             }
             XInputGetState(0, &state);
         }
 
         if (pressed & XINPUT_GAMEPAD_DPAD_DOWN)
         {
-            selected++;
             if (previousButtons != 0 && previousPreviousButtons == 0)
             {
-                Sleep(500);
+                Sleep(400);
+            } else {
+                selected++;
             }
             XInputGetState(0, &state);
         }

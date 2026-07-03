@@ -1,10 +1,11 @@
 #include "Debug.h"
 #include <stdio.h>
 #include <string.h>
+#include "OutputConsole.h"
 void debug_tls(const char* str)
 {
     if(str)
-        printf("%s\n", str);
+        dprintf("%s\n", str);
 
     FILE* fp = NULL;
     errno_t err = fopen_s(&fp, "game:\\DebugInfo.txt", "a+");
