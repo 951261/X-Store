@@ -7,7 +7,7 @@ Not affiliated with the [free60 project](https://free60.org)
 
 ## What is it?
 
-The Xbox 360 game store is a piece of homebrew for the Xbox 360 that allows games to be directly downloaded onto the Xbox 360.
+The X Store is a homebrew application for the Xbox 360 that allows games to be directly downloaded onto the Xbox 360.
 
 ## Requirements
 
@@ -22,17 +22,7 @@ The Xbox 360 game store is a piece of homebrew for the Xbox 360 that allows game
 
 ## How to use
 
-1. Download X-store.zip from the releases
-2. Extract the .xex and settings.txt files from the ZIP file, and transfer them to your console
-3. Set the output path for games in settings.txt. (for example `hdd:\games` or `usb0:\Content\0000000000000000`) This will be where games will be extracted to
-4. Launch it using your favourite file manager or dashboard
-5. Search for your favourite game
-6. Navigate the menu with ↑ and ↓
-7. Select a game by pressing A
-8. Select a version of the game
-9. Press A to begin the download
-
-Currently, this program supports downloading directly from Vimms Lair. While the download speeds can be slow, it contains a variety of games. 
+For detailed instructions on how to setup X Store, see the [setup guide](https://github.com/951261/X-Store/blob/main/docs/Setup%20Guide.md) 
 
 ## Updating
 If you are on version 0.2.3 or later, you can update to the latest version by selecting `Update X Store` when you first start the program. If you are on an earlier version, download the latest version from the releases page, and replace X-Store.xex on your console with the latest version this github repo. 
