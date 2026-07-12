@@ -653,6 +653,9 @@ point_decode(jacobian *P, const void *src, size_t len, const curve_params *cc)
 	 * Convert coordinates and check that the point is valid.
 	 */
 	zlen = ((cc->p[0] + 31) >> 4) * sizeof(uint16_t);
+	if (zlen > I15_LEN * sizeof(uint16_t)) {
+		return 0;
+	}
 	memcpy(Q.c[0], cc->R2, zlen);
 	memcpy(Q.c[1], cc->b, zlen);
 	set_one(Q.c[2], cc->p);
