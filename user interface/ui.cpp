@@ -20,9 +20,14 @@ MAIN FUNCTION : showUI
 
 #include "ui.h"
 #include "vimms_lair.h"
+#include <vector>
 
 #define TEXTBUFFER_SIZE (1024 * 10)
 #define HTML_BUFFER_CAPACITY (1024 * 1024 * 4);
+
+static const SHORT NAVIGATION_STICK_THRESHOLD = 16000;
+static const DWORD NAVIGATION_REPEAT_DELAY_MS = 350;
+static const DWORD NAVIGATION_REPEAT_INTERVAL_MS = 150;
 
 static const char *GetDownloadTypeName(enum DownloadType type)
 {
@@ -39,6 +44,9 @@ static const char *GetDownloadTypeName(enum DownloadType type)
 
     case AUTO_UPDATE:
         return "Update X-Store";
+
+    case DOWNLOAD_QUEUE:
+        return "Download Queue";
 
     default:
         return "Unknown";
@@ -60,6 +68,9 @@ static enum DownloadType GetDownloadTypeFromIndex(int index)
 
     case 3:
         return AUTO_UPDATE;
+
+    case 4:
+        return DOWNLOAD_QUEUE;
 
     default:
         return XBLA;
@@ -94,33 +105,147 @@ static std::string UrlEncodeQuery(const std::string &value)
     return encoded;
 }
 
-static void RenderDownloadTypeMenu(int selected)
+static void WaitForControllerButtonsRelease()
+{
+    XINPUT_STATE state;
+    while (true)
+    {
+        ZeroMemory(&state, sizeof(state));
+        if (XInputGetState(0, &state) != ERROR_SUCCESS || state.Gamepad.wButtons == 0)
+            return;
+
+        Sleep(50);
+    }
+}
+
+static int GetVerticalNavigationDirection(const XINPUT_STATE &state)
+{
+    bool up = (state.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP) != 0 ||
+              state.Gamepad.sThumbLY > NAVIGATION_STICK_THRESHOLD;
+    bool down = (state.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN) != 0 ||
+                state.Gamepad.sThumbLY < -NAVIGATION_STICK_THRESHOLD;
+
+    if (up == down)
+        return 0;
+
+    return up ? -1 : 1;
+}
+
+static bool ShouldMoveSelection(
+    int direction,
+    int *previousDirection,
+    DWORD *nextRepeatTick)
+{
+    if (!previousDirection || !nextRepeatTick)
+        return false;
+
+    DWORD now = GetTickCount();
+    bool shouldMove = false;
+
+    if (direction == 0)
+    {
+        *nextRepeatTick = 0;
+    }
+    else if (direction != *previousDirection)
+    {
+        shouldMove = true;
+        *nextRepeatTick = now + NAVIGATION_REPEAT_DELAY_MS;
+    }
+    else if (*nextRepeatTick != 0 && (LONG)(now - *nextRepeatTick) >= 0)
+    {
+        shouldMove = true;
+        *nextRepeatTick = now + NAVIGATION_REPEAT_INTERVAL_MS;
+    }
+
+    *previousDirection = direction;
+    return shouldMove;
+}
+
+static void InitializeMenuInput(
+    WORD *previousButtons,
+    int *previousDirection,
+    DWORD *nextRepeatTick)
+{
+    if (!previousButtons || !previousDirection || !nextRepeatTick)
+        return;
+
+    XINPUT_STATE state;
+    ZeroMemory(&state, sizeof(state));
+    if (XInputGetState(0, &state) == ERROR_SUCCESS)
+    {
+        *previousButtons = state.Gamepad.wButtons;
+        *previousDirection = GetVerticalNavigationDirection(state);
+        *nextRepeatTick = *previousDirection == 0
+                              ? 0
+                              : GetTickCount() + NAVIGATION_REPEAT_DELAY_MS;
+    }
+    else
+    {
+        *previousButtons = 0;
+        *previousDirection = 0;
+        *nextRepeatTick = 0;
+    }
+}
+
+static void RenderDownloadTypeMenu(int selected, const std::vector<GameData> &gamesInfo)
 {
     char outputTextBuffer[TEXTBUFFER_SIZE] = " ";
 
     ClearConsole();
-    _snprintf(outputTextBuffer, TEXTBUFFER_SIZE - strlen(outputTextBuffer), "Select Download Type\n\n");
+    _snprintf(outputTextBuffer, TEXTBUFFER_SIZE - strlen(outputTextBuffer), "Download Queue (%u items)\n\n", (unsigned int)gamesInfo.size());
 
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < 5; ++i)
     {
         enum DownloadType type = GetDownloadTypeFromIndex(i);
-        _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "%c %s\n",
-                  i == selected ? '>' : ' ',
-                  GetDownloadTypeName(type));
+        if (type == DOWNLOAD_QUEUE)
+        {
+            _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "%c Download all queued items%s\n",
+                      i == selected ? '>' : ' ',
+                      gamesInfo.empty() ? " (queue is empty)" : "");
+        }
+        else
+        {
+            _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "%c %s\n",
+                      i == selected ? '>' : ' ',
+                      GetDownloadTypeName(type));
+        }
     }
 
-    _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "\nA: Select   B: Back   D-Pad: Move\n");
+    if (!gamesInfo.empty())
+    {
+        _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "\nQueued:\n");
+        const size_t visibleQueueItems = 12;
+        size_t firstItem = gamesInfo.size() > visibleQueueItems
+                               ? gamesInfo.size() - visibleQueueItems
+                               : 0;
+        if (firstItem > 0)
+        {
+            _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "... %u earlier items ...\n", (unsigned int)firstItem);
+        }
+
+        for (size_t i = firstItem; i < gamesInfo.size(); ++i)
+        {
+            _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "%u. [%s] %.240s\n",
+                      (unsigned int)(i + 1),
+                      GetDownloadTypeName((enum DownloadType)gamesInfo[i].downloadType),
+                      gamesInfo[i].selectedGameName);
+        }
+    }
+
+    _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "\nA: Select   B: Cancel   D-Pad/Left Stick: Move\n");
 
     dprintf("%s", outputTextBuffer);
 }
 
-static enum DownloadType ShowDownloadTypeMenu()
+static enum DownloadType ShowDownloadTypeMenu(const std::vector<GameData> &gamesInfo)
 {
     int selected = 0;
     WORD previousButtons = 0;
-    WORD previousPreviousButtons = 0;
+    int previousDirection = 0;
+    DWORD nextRepeatTick = 0;
 
-    RenderDownloadTypeMenu(selected);
+    RenderDownloadTypeMenu(selected, gamesInfo);
+    InitializeMenuInput(&previousButtons, &previousDirection, &nextRepeatTick);
 
     XINPUT_STATE state;
 
@@ -135,46 +260,32 @@ static enum DownloadType ShowDownloadTypeMenu()
         }
 
         WORD buttons = state.Gamepad.wButtons;
-        WORD pressed = buttons; // & ~previousButtons;
+        WORD pressed = buttons & ~previousButtons;
+        int direction = GetVerticalNavigationDirection(state);
 
         if (pressed & XINPUT_GAMEPAD_A)
-            return GetDownloadTypeFromIndex(selected);
+        {
+            enum DownloadType selectedType = GetDownloadTypeFromIndex(selected);
+            if (selectedType != DOWNLOAD_QUEUE || !gamesInfo.empty())
+                return selectedType;
+        }
 
         if (pressed & XINPUT_GAMEPAD_B)
             return (enum DownloadType)0;
 
-        if (pressed & XINPUT_GAMEPAD_DPAD_UP)
-        {
-            if (previousButtons != 0 && previousPreviousButtons == 0)
-            {
-                Sleep(400);
-            } else {
-                selected--;
-            }
-            XInputGetState(0, &state);
-        }
-
-        if (pressed & XINPUT_GAMEPAD_DPAD_DOWN)
-        {
-            if (previousButtons != 0 && previousPreviousButtons == 0)
-            {
-                Sleep(400);
-            } else {
-                selected++;
-            }
-            XInputGetState(0, &state);
-        }
+        bool moved = ShouldMoveSelection(direction, &previousDirection, &nextRepeatTick);
+        if (moved)
+            selected += direction;
 
         if (selected < 0)
             selected = 0;
 
-        if (selected >= 4)
-            selected = 3;
+        if (selected >= 5)
+            selected = 4;
 
-        if (pressed & (XINPUT_GAMEPAD_DPAD_UP | XINPUT_GAMEPAD_DPAD_DOWN))
-            RenderDownloadTypeMenu(selected);
+        if (moved)
+            RenderDownloadTypeMenu(selected, gamesInfo);
 
-        previousPreviousButtons = previousButtons;
         previousButtons = buttons;
         Sleep(50);
     }
@@ -207,7 +318,7 @@ static void RenderSearchResults(const GameList *list, int selected, int scroll)
                   list->items[index].name);
     }
 
-    _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "\nA: Select   B: Back   D-Pad: Move\n");
+    _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "\nA: Select   B: Back   D-Pad/Left Stick: Move\n");
 
     dprintf("%s", outputTextBuffer); // draw in one go to prevent flickering
 }
@@ -237,9 +348,11 @@ static int ShowSearchResultsUI(const GameList *list)
     int selected = 0;
     int scroll = 0;
     WORD previousButtons = 0;
-    WORD previousPreviousButtons = 0;
+    int previousDirection = 0;
+    DWORD nextRepeatTick = 0;
 
     RenderSearchResults(list, selected, scroll);
+    InitializeMenuInput(&previousButtons, &previousDirection, &nextRepeatTick);
 
     while (true)
     {
@@ -253,7 +366,8 @@ static int ShowSearchResultsUI(const GameList *list)
         }
 
         WORD buttons = state.Gamepad.wButtons;
-        WORD pressed = buttons; // & ~previousButtons;
+        WORD pressed = buttons & ~previousButtons;
+        int direction = GetVerticalNavigationDirection(state);
 
         if (pressed & XINPUT_GAMEPAD_A)
             return selected;
@@ -261,25 +375,9 @@ static int ShowSearchResultsUI(const GameList *list)
         if (pressed & XINPUT_GAMEPAD_B)
             return -1;
 
-        if (pressed & XINPUT_GAMEPAD_DPAD_UP)
-        {
-            selected--;
-            if (previousButtons != 0 && previousPreviousButtons == 0)
-            {
-                Sleep(500);
-            }
-            XInputGetState(0, &state); // clear controller input buffer
-        }
-
-        if (pressed & XINPUT_GAMEPAD_DPAD_DOWN)
-        {
-            selected++;
-            if (previousButtons != 0 && previousPreviousButtons == 0)
-            {
-                Sleep(500);
-            }
-            XInputGetState(0, &state);
-        }
+        bool moved = ShouldMoveSelection(direction, &previousDirection, &nextRepeatTick);
+        if (moved)
+            selected += direction;
 
         if (selected < 0)
             selected = 0;
@@ -293,10 +391,9 @@ static int ShowSearchResultsUI(const GameList *list)
         if (selected >= scroll + visibleRows)
             scroll = selected - visibleRows + 1;
 
-        if (pressed & (XINPUT_GAMEPAD_DPAD_UP | XINPUT_GAMEPAD_DPAD_DOWN))
+        if (moved)
             RenderSearchResults(list, selected, scroll);
 
-        previousPreviousButtons = previousButtons;
         previousButtons = buttons;
 
         Sleep(50);
@@ -327,7 +424,7 @@ static void RenderMediaResults(const MediaList *list, const char *gameName, int 
                   list->items[i].version);
     }
 
-    _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "\nA: Select   B: Back   D-Pad: Move\n");
+    _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "\nA: Select   B: Back   D-Pad/Left Stick: Move\n");
 
     dprintf("%s", outputTextBuffer);
 }
@@ -357,8 +454,11 @@ static int ShowMediaResultsUI(const MediaList *list, const char *gameName)
 
     int selected = 0;
     WORD previousButtons = 0;
+    int previousDirection = 0;
+    DWORD nextRepeatTick = 0;
 
     RenderMediaResults(list, gameName, selected);
+    InitializeMenuInput(&previousButtons, &previousDirection, &nextRepeatTick);
 
     while (true)
     {
@@ -373,7 +473,7 @@ static int ShowMediaResultsUI(const MediaList *list, const char *gameName)
 
         WORD buttons = state.Gamepad.wButtons;
         WORD pressed = buttons & ~previousButtons;
-        previousButtons = buttons;
+        int direction = GetVerticalNavigationDirection(state);
 
         if (pressed & XINPUT_GAMEPAD_A)
             return selected;
@@ -381,11 +481,9 @@ static int ShowMediaResultsUI(const MediaList *list, const char *gameName)
         if (pressed & XINPUT_GAMEPAD_B)
             return -1;
 
-        if (pressed & XINPUT_GAMEPAD_DPAD_UP)
-            selected--;
-
-        if (pressed & XINPUT_GAMEPAD_DPAD_DOWN)
-            selected++;
+        bool moved = ShouldMoveSelection(direction, &previousDirection, &nextRepeatTick);
+        if (moved)
+            selected += direction;
 
         if (selected < 0)
             selected = 0;
@@ -393,8 +491,10 @@ static int ShowMediaResultsUI(const MediaList *list, const char *gameName)
         if (selected >= (int)list->count)
             selected = (int)list->count - 1;
 
-        if (pressed & (XINPUT_GAMEPAD_DPAD_UP | XINPUT_GAMEPAD_DPAD_DOWN))
+        if (moved)
             RenderMediaResults(list, gameName, selected);
+
+        previousButtons = buttons;
 
         Sleep(50);
     }
@@ -493,9 +593,11 @@ DWORD OpenKeyboardToString(
     return ERROR_SUCCESS;
 }
 
-int showUI(char *gameURL, int len, char *gameName, int gameNameLen)
+std::vector<GameData> showUI()
 {
     Sleep(1000);
+
+    std::vector<GameData> gamesInfo;
 
     while (true)
     {
@@ -517,160 +619,141 @@ int showUI(char *gameURL, int len, char *gameName, int gameNameLen)
 
     Sleep(250);
 
-    enum DownloadType downloadType = ShowDownloadTypeMenu();
-    if (!downloadType)
-        return -1;
-
-    Sleep(250);
-
-    unsigned long long OUTPUT_BUFFER_SIZE = HTML_BUFFER_CAPACITY;
-
-    char *buffer = (char *)malloc(OUTPUT_BUFFER_SIZE); // 4MB buffer just to be safe
-
-    if (buffer == NULL)
+    while (true)
     {
-        dprintf("Malloc failed\n");
-        return -1;
-    }
+        WaitForControllerButtonsRelease();
+        enum DownloadType downloadType = ShowDownloadTypeMenu(gamesInfo);
+        if (!downloadType)
+            return std::vector<GameData>();
 
-    if (downloadType == AUTO_UPDATE)
-    {
-        if (runUpdate() != EXIT_FAILURE)
+        if (downloadType == DOWNLOAD_QUEUE)
+            return gamesInfo;
+
+        if (downloadType == AUTO_UPDATE)
         {
-            dprintf("Update Succeeded! \n");
-        }
-        return -1;
-    }
-
-    std::string gameSearchString = "";
-    DWORD keyboardResult = OpenKeyboardToString(XUSER_INDEX_ANY, &gameSearchString, L"Search for a game", L"Search for a game here", L"GTA VI");
-    if (keyboardResult != ERROR_SUCCESS || gameSearchString.empty())
-    {
-        dprintf("Failed to get search string from keyboard\n");
-        if (gameSearchString.empty())
-        {
-            dprintf("Search request was emtpy\n");
+            if (runUpdate() != EXIT_FAILURE)
+                dprintf("Update Succeeded!\n");
+            Sleep(500);
+            continue;
         }
 
-        free(buffer);
-        return -1;
-    }
+        unsigned long long outputBufferSize = HTML_BUFFER_CAPACITY;
+        char *buffer = (char *)malloc(outputBufferSize);
+        if (!buffer)
+        {
+            dprintf("Malloc failed\n");
+            return std::vector<GameData>();
+        }
 
-    std::cout << "Text output: " << gameSearchString << "\n";
+        std::string gameSearchString;
+        DWORD keyboardResult = OpenKeyboardToString(
+            XUSER_INDEX_ANY,
+            &gameSearchString,
+            L"Search for a game",
+            L"Search for a game here",
+            L"");
+        if (keyboardResult != ERROR_SUCCESS || gameSearchString.empty())
+        {
+            free(buffer);
+            continue;
+        }
 
-    std::string searchURL = "https://vimm.net/vault/?p=list&system=Xbox360&q="; // default
+        std::string searchURL;
+        switch (downloadType)
+        {
+        case ORIGINAL_XBOX:
+            searchURL = "https://vimm.net/vault/?p=list&system=Xbox&q=";
+            break;
+        case XBOX_360:
+            searchURL = "https://vimm.net/vault/?p=list&system=Xbox360&q=";
+            break;
+        case XBLA:
+            searchURL = "https://vimm.net/vault/?p=list&system=X360-D&q=";
+            break;
+        default:
+            free(buffer);
+            continue;
+        }
+        searchURL.append(UrlEncodeQuery(gameSearchString));
 
-    switch (downloadType)
-    {
-    case ORIGINAL_XBOX:
-        searchURL = "https://vimm.net/vault/?p=list&system=Xbox&q=";
-        break;
+        if (downloadFileHTTPS(searchURL, "", buffer, &outputBufferSize, false, dprintf) != 200)
+        {
+            dprintf("Download game list failed.\n");
+            free(buffer);
+            Sleep(500);
+            continue;
+        }
 
-    case XBOX_360:
-        searchURL = "https://vimm.net/vault/?p=list&system=Xbox360&q=";
-        break;
+        GameList list = {0};
+        if (!parse_vimm_search_results(buffer, &list))
+        {
+            dprintf("Failed to parse search results.\n");
+            free_game_list(&list);
+            free(buffer);
+            Sleep(500);
+            continue;
+        }
 
-    case XBLA:
-        searchURL = "https://vimm.net/vault/?p=list&system=X360-D&q=";
-        break;
+        int selected = ShowSearchResultsUI(&list);
+        if (selected < 0)
+        {
+            free_game_list(&list);
+            free(buffer);
+            continue;
+        }
 
-    default:
-        break;
-    }
+        std::string selectedURL = "https://vimm.net";
+        selectedURL.append(list.items[selected].link);
 
-    searchURL.append(UrlEncodeQuery(gameSearchString));
+        outputBufferSize = HTML_BUFFER_CAPACITY;
+        if (downloadFileHTTPS(selectedURL, "", buffer, &outputBufferSize, false, dprintf) != 200)
+        {
+            dprintf("Download game version list failed.\n");
+            free_game_list(&list);
+            free(buffer);
+            Sleep(500);
+            continue;
+        }
 
-    if (downloadFileHTTPS(searchURL, "", buffer, &OUTPUT_BUFFER_SIZE, false, dprintf) != 200)
-    { // downloads into a null terminated buffer
-        dprintf("Download game list failed. Ensure you searched for an actual game. Ensure your search request was EXACTLY correct. \n");
-        free(buffer);
-        return -1;
-    }
+        MediaList mediaList = {0};
+        if (!parse_vimm_media_ids(buffer, &mediaList) || mediaList.count == 0)
+        {
+            dprintf("Failed to parse media ID from selected game page.\n");
+            free_media_list(&mediaList);
+            free_game_list(&list);
+            free(buffer);
+            Sleep(500);
+            continue;
+        }
 
-    GameList list = {0};
+        int selectedMedia = ShowMediaResultsUI(&mediaList, list.items[selected].name);
+        if (selectedMedia < 0)
+        {
+            free_media_list(&mediaList);
+            free_game_list(&list);
+            free(buffer);
+            continue;
+        }
 
-    printf("Parsing search results\n");
+        std::string finalDownloadURL = DOWNLOAD_DOMAIN "/?mediaId=";
+        finalDownloadURL.append(mediaList.items[selectedMedia].id);
 
-    if (!parse_vimm_search_results(buffer, &list)) // this strlen operation assumes that there were no NULL character before the end, which is fine for HTML, but not for other files
-    {
-        dprintf("Failed to parse HTML.\n");
-        free(buffer);
-        free_game_list(&list);
-        return -1;
-    }
+        GameData gameData;
+        ZeroMemory(&gameData, sizeof(gameData));
+        gameData.downloadType = downloadType;
+        strncpy(gameData.selectedGameName, list.items[selected].name, sizeof(gameData.selectedGameName) - 1);
+        strncpy(gameData.selectedGameURL, finalDownloadURL.c_str(), sizeof(gameData.selectedGameURL) - 1);
+        gamesInfo.push_back(gameData);
 
-    int selected = ShowSearchResultsUI(&list);
+        ClearConsole();
+        dprintf("Queued %s Disc %s version %s\n",
+                gameData.selectedGameName,
+                mediaList.items[selectedMedia].disc,
+                mediaList.items[selectedMedia].version);
 
-    if (selected < 0)
-    {
-        dprintf("Game not found. Ensure you searched for a real Xbox 360 game\n\n");
-        free_game_list(&list);
-        free(buffer);
-        return -1;
-    }
-
-    std::string selectedURL = "https://vimm.net";
-    selectedURL.append(list.items[selected].link);
-
-    if (gameName && gameNameLen > 0)
-    {
-        strncpy(gameName, list.items[selected].name, gameNameLen - 1);
-        gameName[gameNameLen - 1] = '\0';
-    }
-
-    ClearConsole();
-    dprintf("Selected:\n%s\n\n%s\n", list.items[selected].name, selectedURL.c_str());
-
-    // Now download the selected game
-
-    OUTPUT_BUFFER_SIZE = HTML_BUFFER_CAPACITY;
-    if (downloadFileHTTPS(selectedURL, "", buffer, &OUTPUT_BUFFER_SIZE, false, dprintf) != 200)
-    { // downloads into a null terminated buffer
-        dprintf("Download game version list failed\n");
-        free_game_list(&list);
-        free(buffer);
-        return -1;
-    }
-
-    MediaList mediaList = {0};
-    if (!parse_vimm_media_ids(buffer, &mediaList) || mediaList.count == 0)
-    {
-        dprintf("Failed to parse media ID from selected game page.\n");
         free_media_list(&mediaList);
         free_game_list(&list);
         free(buffer);
-        return -1;
+        Sleep(500);
     }
-
-    int selectedMedia = ShowMediaResultsUI(&mediaList, list.items[selected].name);
-    if (selectedMedia < 0)
-    {
-        dprintf("Failed to find game version\n\n");
-        free_media_list(&mediaList);
-        free_game_list(&list);
-        free(buffer);
-        return -1;
-    }
-
-    std::string finalDownloadURL = (DOWNLOAD_DOMAIN "/?mediaId=");
-
-    finalDownloadURL.append(mediaList.items[selectedMedia].id);
-
-    if (gameURL && len > 0)
-    {
-        strncpy(gameURL, finalDownloadURL.c_str(), len - 1);
-        gameURL[len - 1] = '\0';
-    }
-
-    ClearConsole();
-    dprintf("Download URL:\n%s\n\n%s Disc %s version %s\n",
-            finalDownloadURL.c_str(),
-            list.items[selected].name,
-            mediaList.items[selectedMedia].disc,
-            mediaList.items[selectedMedia].version);
-
-    free_media_list(&mediaList);
-    free_game_list(&list);
-    free(buffer);
-    return downloadType;
 }

@@ -31,6 +31,7 @@ DESCRIPTION : READ THE FILE NAME (Haha). This is the main file that coordinates 
 #include <file-stuff.h>
 #include <vector>
 #include <algorithm>
+#include <string>
 
 #define SETTINGS_FILE "game:\\settings.txt"
 
@@ -595,6 +596,55 @@ struct Settings getSettings()
 	return settings;
 }
 
+int parseGameData(GameData gamesData)
+{
+
+	struct Settings settings = getSettings();
+
+	MakeSafeFolderName(gamesData.selectedGameName, gamesData.safeGameFolderName, FATX_SAFE_FOLDER_NAME_LEN);
+
+	switch (gamesData.downloadType)
+	{
+	case ORIGINAL_XBOX:
+		_snprintf(gamesData.outputFolder, sizeof(gamesData.outputFolder), "%s\\%s", settings.originalXboxPath, gamesData.safeGameFolderName);
+		break;
+
+	case XBOX_360:
+		_snprintf(gamesData.outputFolder, sizeof(gamesData.outputFolder), "%s\\%s", settings.xbox360Path, gamesData.safeGameFolderName);
+		break;
+
+	case XBLA:
+		_snprintf(gamesData.outputFolder, sizeof(gamesData.outputFolder), "%s\\%s", settings.xblaPath, gamesData.safeGameFolderName);
+		break;
+
+	default:
+		dprintf("ERROR: Unknown download type: %d \n", gamesData.downloadType);
+		return -1;
+	}
+
+	gamesData.outputFolder[sizeof(gamesData.outputFolder) - 1] = '\0';
+
+	dprintf("Extracting to: %s\n", gamesData.outputFolder);
+
+	int downloadStatus = -1;
+
+	if (gamesData.downloadType == XBLA)
+	{
+		downloadStatus = getGame(std::string(gamesData.selectedGameURL), "game:\\tmp.7z.001", gamesData.outputFolder, settings.xblaPath, gamesData.downloadType);
+	}
+	else
+	{
+		downloadStatus = getGame(std::string(gamesData.selectedGameURL), "game:\\tmp.7z.001", "game:\\tmp_output", gamesData.outputFolder, gamesData.downloadType);
+	}
+
+	if (downloadStatus == EXIT_SUCCESS)
+	{
+		return EXIT_SUCCESS;
+	}
+
+	return EXIT_FAILURE;
+}
+
 int main()
 {
 	remove(LOG_FILE_PATH);
@@ -608,67 +658,29 @@ int main()
 
 		dprintf("X Store store " CURRENT_VERSION " beta (https://github.com/951261)\n");
 
-		char selectedGameURL[MAX_TEXT_LENGTH] = "";
-		char selectedGameName[MAX_TEXT_LENGTH] = "";
-		char safeGameFolderName[MAX_TEXT_LENGTH] = "";
-		char outputFolder[MAX_TEXT_LENGTH] = "";
+		const std::vector<GameData> gamesData = showUI();
 
-		const int downloadType = showUI(selectedGameURL, sizeof(selectedGameURL), selectedGameName, sizeof(selectedGameName));
-
-		if (downloadType >= 0)
-		{
-			dprintf("Selected game URL: %s\n", selectedGameURL);
-			dprintf("Selected game: %s\n", selectedGameName);
-		}
-		else
+		if (gamesData.size() <= 0)
 		{
 			dprintf("Failed to search for a game\n");
 			goto exitFailed;
 		}
 
-		struct Settings settings = getSettings();
-
-		MakeSafeFolderName(selectedGameName, safeGameFolderName, FATX_SAFE_FOLDER_NAME_LEN);
-
-		switch (downloadType)
+		bool allDownloadsSucceeded = true;
+		for (std::vector<GameData>::const_iterator game = gamesData.begin(); game != gamesData.end(); ++game)
 		{
-		case ORIGINAL_XBOX:
-			_snprintf(outputFolder, sizeof(outputFolder), "%s\\%s", settings.originalXboxPath, safeGameFolderName);
-			break;
+			dprintf("Downloading %s\n", game->selectedGameName);
+			int status = parseGameData(*game);
 
-		case XBOX_360:
-			_snprintf(outputFolder, sizeof(outputFolder), "%s\\%s", settings.xbox360Path, safeGameFolderName);
-			break;
-
-		case XBLA:
-			_snprintf(outputFolder, sizeof(outputFolder), "%s\\%s", settings.xblaPath, safeGameFolderName);
-			break;
-		
-		default:
-			dprintf("ERROR: Unknown download type: %d \n", downloadType);
-			goto exitFailed;
-			break;
-		}
-		
-		outputFolder[sizeof(outputFolder) - 1] = '\0';
-
-		dprintf("Extracting to: %s\n", outputFolder);
-
-		int downloadStatus = -1;
-
-		if (downloadType == XBLA)
-		{
-			downloadStatus = getGame(std::string(selectedGameURL), "game:\\tmp.7z.001", outputFolder, settings.xblaPath, downloadType);
-		}
-		else
-		{
-			downloadStatus = getGame(std::string(selectedGameURL), "game:\\tmp.7z.001", "game:\\tmp_output", outputFolder, downloadType);
+			if (status != EXIT_SUCCESS)
+			{
+				allDownloadsSucceeded = false;
+				break;
+			}
 		}
 
-		if (downloadStatus == EXIT_SUCCESS)
-		{
+		if (allDownloadsSucceeded)
 			return EXIT_SUCCESS;
-		}
 
 	exitFailed:
 		dprintf("Something went wrong! Press Y to search again, or B to exit\n");
