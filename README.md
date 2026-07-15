@@ -31,7 +31,7 @@ If you are on version 0.2.10 or later, you can update to the latest version by s
 
 | | |
 | --- | --- |
-| I cannot search for games | This is a known issue, and I do not know why it works fine for some, but not others | 
+| I cannot search for games | Try manually updating X Store to the latest version. If this does not fix it, then it is likely caused by a known issue that I have not identified the cause of. I do not know why it works fine for some, but not others | 
 | The download freezes or fails | If you have any slow or intermittent internet connection, it can cause the download to fail. Currently, there is no fix for this. Additionally, check you have enough storage space to download the game | 
 | 7zip or ISO decompression fails | Check your have enough free storage space. You may need **twice** the game size in free space to ensure the download does not fail. | 
 | ISO extraction fails | Check your have enough free storage space. Also check that the paths in `settings.txt` are correct. A common issue is when extracting to an internal hard drive, you must use `hdd:\`, NOT `hdd1:\`. | 
@@ -51,6 +51,7 @@ If you are on version 0.2.10 or later, you can update to the latest version by s
 * Does this require a stealth server? No, this program only requires an internet connection, no Xbox Live or Stealth server required
 * Does it run in the background? No, you must keep the program open whilst downloading, decompressing and extracting
 * Does this work with Aurora/FSD? Yes, this program will work with any dashboard that can launch homebrew apps.
+* Do I need to change any dashlaunch or launch.ini settings for X Store to work? No, you should not need to edit any launch.ini/dashlaunch settings.
 * Why is the user interface so bad? I have very little experience with user interface design, and I have been more focused on getting the backend working. If you are skilled enough to make a better UI, I would very much appreciate it. 
 
 ## Credits
