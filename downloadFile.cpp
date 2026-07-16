@@ -627,8 +627,14 @@ int DumpResponse(XboxTLSContext *ctx,
 
     bytesWrittenToCurrentFile = totalWritten;
 
+    bool paused = false;
+    // Check for paused download
+    XINPUT_STATE state;
+    ZeroMemory(&state, sizeof(state));
+
     if (!chunked) // When dowloading from Vimms lair, we request that the files is NOT chunked, so this loop 99% of the time should be what is used to download the majority of the file (except the header of course!!!)
     {
+        dprintf("If you wish to pause your download, press the Start button\n");
         while ((r = XboxTLS_Read(ctx, buffer, BUFFER_SIZE)) > 0)
         {
             if (r + bytesWrittenToCurrentFile > MAX_FILE_SIZE && splitFile) // As both XFat and FAT32 only support 4GB files, all downloaded files must be split (file.001, file.002, etc..). Up to 9 parts (.009) is supported
@@ -687,6 +693,46 @@ int DumpResponse(XboxTLSContext *ctx,
                 goto failure;
             }
 
+            if (XInputGetState(0, &state) == ERROR_SUCCESS) {
+                if(state.Gamepad.wButtons & XINPUT_GAMEPAD_START) {
+                    paused = true;
+                    dprintf("\nDownload paused. Press Start to resume, or B to cancel the download\nIf you pause for too long, the download may fail to resume\n");
+
+                    while (state.Gamepad.wButtons & XINPUT_GAMEPAD_START) {
+                        Sleep(50);
+                        if (XInputGetState(0, &state) != ERROR_SUCCESS) {
+                            dprintf("Controller read error\n");
+                            goto failure;
+                        }
+                    }
+                }
+
+                while(paused) {
+                    ZeroMemory(&state, sizeof(state));
+
+                    // Wait to be unpaused
+                    if (XInputGetState(0, &state) == ERROR_SUCCESS) {
+                        if(state.Gamepad.wButtons & XINPUT_GAMEPAD_START) {
+                            paused = false;
+                            dprintf("Resuming download\n");
+
+                            while (state.Gamepad.wButtons & XINPUT_GAMEPAD_START) {
+                                Sleep(50);
+                                if (XInputGetState(0, &state) != ERROR_SUCCESS) {
+                                    dprintf("Controller read error\n");
+                                    goto failure;
+                                }
+                            }
+                        } else if (state.Gamepad.wButtons & XINPUT_GAMEPAD_B) {
+                            dprintf("Download Canceled\n");
+                            goto failure;
+                        }
+                    }
+                    Sleep(100);
+                }
+            }
+
+
             totalWritten += r;
             bytesWrittenToCurrentFile += r;
 
@@ -694,8 +740,6 @@ int DumpResponse(XboxTLSContext *ctx,
 
             if (endTime - startTime >= 3000)
             {
-                // Check for paused download
-                
                 unsigned long long tempTotalWritten = totalWritten;
                 if (tempTotalWritten / (endTime - startTime) == 0 || tempTotalWritten / (endTime - beginTime) == 0)
                 {
