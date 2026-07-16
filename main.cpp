@@ -596,7 +596,86 @@ struct Settings getSettings()
 	return settings;
 }
 
-int parseGameData(GameData gamesData)
+static bool OutputFolderAlreadyUsed(
+	const char *outputFolder,
+	const std::vector<std::string> &usedOutputFolders)
+{
+	if (!outputFolder)
+		return false;
+
+	for (std::vector<std::string>::const_iterator folder = usedOutputFolders.begin();
+		 folder != usedOutputFolders.end();
+		 ++folder)
+	{
+		if (_stricmp(outputFolder, folder->c_str()) == 0)
+			return true;
+	}
+
+	return false;
+}
+
+static bool MakeDuplicateOutputFolderUnique(
+	char *outputFolder,
+	size_t outputFolderSize,
+	const std::vector<std::string> &usedOutputFolders)
+{
+	if (!outputFolder || outputFolderSize == 0)
+		return false;
+
+	if (!OutputFolderAlreadyUsed(outputFolder, usedOutputFolders))
+		return true;
+
+	char originalOutputFolder[MAX_TEXT_LENGTH];
+	strncpy(originalOutputFolder, outputFolder, sizeof(originalOutputFolder) - 1);
+	originalOutputFolder[sizeof(originalOutputFolder) - 1] = '\0';
+
+	const char *lastSlash = strrchr(originalOutputFolder, '\\');
+	const char *lastForwardSlash = strrchr(originalOutputFolder, '/');
+	if (!lastSlash || (lastForwardSlash && lastForwardSlash > lastSlash))
+		lastSlash = lastForwardSlash;
+
+	const char *folderName = lastSlash ? lastSlash + 1 : originalOutputFolder;
+	size_t rootLength = lastSlash ? (size_t)(folderName - originalOutputFolder) : 0;
+	size_t folderNameLength = strlen(folderName);
+
+	for (unsigned int duplicateNumber = 2; duplicateNumber != 0; ++duplicateNumber)
+	{
+		char suffix[24];
+		int suffixLengthResult = _snprintf(suffix, sizeof(suffix), " (%u)", duplicateNumber);
+		if (suffixLengthResult <= 0 || suffixLengthResult >= (int)sizeof(suffix))
+			return false;
+
+		size_t suffixLength = (size_t)suffixLengthResult;
+		if (rootLength + suffixLength >= outputFolderSize ||
+			suffixLength >= FATX_SAFE_FOLDER_NAME_LEN)
+		{
+			return false;
+		}
+
+		size_t maxNameLength = FATX_SAFE_FOLDER_NAME_LEN - 1 - suffixLength;
+		size_t maxNameLengthForBuffer = outputFolderSize - 1 - rootLength - suffixLength;
+		if (maxNameLength > maxNameLengthForBuffer)
+			maxNameLength = maxNameLengthForBuffer;
+
+		size_t uniqueNameLength = folderNameLength;
+		if (uniqueNameLength > maxNameLength)
+			uniqueNameLength = maxNameLength;
+
+		memcpy(outputFolder, originalOutputFolder, rootLength);
+		memcpy(outputFolder + rootLength, folderName, uniqueNameLength);
+		memcpy(outputFolder + rootLength + uniqueNameLength, suffix, suffixLength);
+		outputFolder[rootLength + uniqueNameLength + suffixLength] = '\0';
+
+		if (!OutputFolderAlreadyUsed(outputFolder, usedOutputFolders))
+			return true;
+	}
+
+	return false;
+}
+
+int parseGameData(
+	GameData gamesData,
+	std::vector<std::string> &usedOutputFolders)
 {
 
 	struct Settings settings = getSettings();
@@ -623,6 +702,17 @@ int parseGameData(GameData gamesData)
 	}
 
 	gamesData.outputFolder[sizeof(gamesData.outputFolder) - 1] = '\0';
+
+	if (!MakeDuplicateOutputFolderUnique(
+			gamesData.outputFolder,
+			sizeof(gamesData.outputFolder),
+			usedOutputFolders))
+	{
+		dprintf("ERROR: Failed to create a unique output folder for %s\n", gamesData.selectedGameName);
+		return EXIT_FAILURE;
+	}
+
+	usedOutputFolders.push_back(std::string(gamesData.outputFolder));
 
 	dprintf("Extracting to: %s\n", gamesData.outputFolder);
 
@@ -658,6 +748,9 @@ int main()
 
 		dprintf("X Store store " CURRENT_VERSION " beta (https://github.com/951261)\n");
 
+		bool allDownloadsSucceeded = true;
+		std::vector<std::string> usedOutputFolders;
+
 		const std::vector<GameData> gamesData = showUI();
 
 		if (gamesData.size() <= 0)
@@ -666,11 +759,10 @@ int main()
 			goto exitFailed;
 		}
 
-		bool allDownloadsSucceeded = true;
 		for (std::vector<GameData>::const_iterator game = gamesData.begin(); game != gamesData.end(); ++game)
 		{
 			dprintf("Downloading %s\n", game->selectedGameName);
-			int status = parseGameData(*game);
+			int status = parseGameData(*game, usedOutputFolders);
 
 			if (status != EXIT_SUCCESS)
 			{

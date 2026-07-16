@@ -547,7 +547,7 @@ int XboxTLS_Write(XboxTLSContext* ctx, const void* buf, int len) {
     }
 
     if (ic->xc.err == BR_ERR_X509_NOT_TRUSTED) {
-        debug_tls("VERY IMPORTANT WARNING!!!!!!!!!!: TLS certificate chain is not trusted; continuing anyway.");
+        debug_tls("WARNING: TLS certificate chain is not trusted; continuing anyway.");
     }
 
     if (writeResult < 0) {

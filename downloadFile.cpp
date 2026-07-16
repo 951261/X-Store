@@ -694,6 +694,8 @@ int DumpResponse(XboxTLSContext *ctx,
 
             if (endTime - startTime >= 3000)
             {
+                // Check for paused download
+                
                 unsigned long long tempTotalWritten = totalWritten;
                 if (tempTotalWritten / (endTime - startTime) == 0 || tempTotalWritten / (endTime - beginTime) == 0)
                 {
