@@ -291,6 +291,29 @@ static enum DownloadType ShowDownloadTypeMenu(const std::vector<GameData> &games
     }
 }
 
+enum SearchResultAction
+{
+    SEARCH_RESULT_CANCEL,
+    SEARCH_RESULT_DOWNLOAD_NOW,
+    SEARCH_RESULT_ADD_TO_QUEUE
+};
+
+struct SearchResultSelection
+{
+    int index;
+    SearchResultAction action;
+};
+
+static SearchResultSelection MakeSearchResultSelection(
+    int index,
+    SearchResultAction action)
+{
+    SearchResultSelection selection;
+    selection.index = index;
+    selection.action = action;
+    return selection;
+}
+
 static void RenderSearchResults(const GameList *list, int selected, int scroll)
 {
     const int visibleRows = 20;
@@ -318,12 +341,12 @@ static void RenderSearchResults(const GameList *list, int selected, int scroll)
                   list->items[index].name);
     }
 
-    _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "\nA: Select   B: Back   D-Pad/Left Stick: Move\n");
+    _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "\nA: Download Now   Y: Add to Queue   B: Back   D-Pad/Left Stick: Move\n");
 
     dprintf("%s", outputTextBuffer); // draw in one go to prevent flickering
 }
 
-static int ShowSearchResultsUI(const GameList *list)
+static SearchResultSelection ShowSearchResultsUI(const GameList *list)
 {
     if (!list || list->count == 0)
     {
@@ -337,7 +360,7 @@ static int ShowSearchResultsUI(const GameList *list)
             if (XInputGetState(0, &state) == ERROR_SUCCESS &&
                 (state.Gamepad.wButtons & XINPUT_GAMEPAD_B))
             {
-                return -1;
+                return MakeSearchResultSelection(-1, SEARCH_RESULT_CANCEL);
             }
 
             Sleep(50);
@@ -370,10 +393,13 @@ static int ShowSearchResultsUI(const GameList *list)
         int direction = GetVerticalNavigationDirection(state);
 
         if (pressed & XINPUT_GAMEPAD_A)
-            return selected;
+            return MakeSearchResultSelection(selected, SEARCH_RESULT_DOWNLOAD_NOW);
+
+        if (pressed & XINPUT_GAMEPAD_Y)
+            return MakeSearchResultSelection(selected, SEARCH_RESULT_ADD_TO_QUEUE);
 
         if (pressed & XINPUT_GAMEPAD_B)
-            return -1;
+            return MakeSearchResultSelection(-1, SEARCH_RESULT_CANCEL);
 
         bool moved = ShouldMoveSelection(direction, &previousDirection, &nextRepeatTick);
         if (moved)
@@ -694,13 +720,17 @@ std::vector<GameData> showUI()
             continue;
         }
 
-        int selected = ShowSearchResultsUI(&list);
-        if (selected < 0)
+        SearchResultSelection searchSelection = ShowSearchResultsUI(&list);
+        if (searchSelection.action == SEARCH_RESULT_CANCEL || searchSelection.index < 0)
         {
             free_game_list(&list);
             free(buffer);
             continue;
         }
+
+        int selected = searchSelection.index;
+        bool downloadImmediately =
+            searchSelection.action == SEARCH_RESULT_DOWNLOAD_NOW;
 
         std::string selectedURL = "https://vimm.net";
         selectedURL.append(list.items[selected].link);
@@ -743,10 +773,15 @@ std::vector<GameData> showUI()
         gameData.downloadType = downloadType;
         strncpy(gameData.selectedGameName, list.items[selected].name, sizeof(gameData.selectedGameName) - 1);
         strncpy(gameData.selectedGameURL, finalDownloadURL.c_str(), sizeof(gameData.selectedGameURL) - 1);
+        if (downloadImmediately)
+            gamesInfo.clear();
+
         gamesInfo.push_back(gameData);
 
         ClearConsole();
-        dprintf("Queued %s Disc %s version %s\n",
+        dprintf(downloadImmediately
+                    ? "Preparing to download %s Disc %s version %s\n"
+                    : "Queued %s Disc %s version %s\n",
                 gameData.selectedGameName,
                 mediaList.items[selectedMedia].disc,
                 mediaList.items[selectedMedia].version);
@@ -754,6 +789,10 @@ std::vector<GameData> showUI()
         free_media_list(&mediaList);
         free_game_list(&list);
         free(buffer);
+
+        if (downloadImmediately)
+            return gamesInfo;
+
         Sleep(500);
     }
 }

@@ -234,7 +234,7 @@ static bool WriteChunkedBody(ChunkedDecodeState *state, FILE *file, const char *
 
             if (!WriteBody(file, data + pos, bytesToWrite, totalWritten, outputBuffer))
                 return false;
-
+			
             pos += bytesToWrite;
             state->remaining -= (unsigned long)bytesToWrite;
 
