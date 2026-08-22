@@ -48,6 +48,7 @@ If you are on version 0.2.10 or later, you can update to the latest version by s
 
 * Will this work with BadUpdate/ABadAvatar? Yes, it should work on any homebrew capable Xbox 360 console
 * Why is it taking so long? The Xbox 360 is (by modern standards) an old console. Attempting to download large games directly on the console over encrypted HTTPS is not a simple feat
+* How can I make my downloads faster? Wired ethernet will usually be faster than WiFi. The biggest contributor to speed is usually based on where you live, and how fast your internet connection is. Changing your DNS settings is unlikely to make a difference. 
 * Does this require a stealth server? No, this program only requires an internet connection, no Xbox Live or Stealth server required
 * Does it run in the background? No, you must keep the program open whilst downloading, decompressing and extracting
 * Does this work with Aurora/FSD? Yes, this program will work with any dashboard that can launch homebrew apps.
