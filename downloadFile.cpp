@@ -168,6 +168,75 @@ static const unsigned char TA0_RSA_N[] = {
 static const unsigned char TA0_RSA_E[] = {
     0x01, 0x00, 0x01};
 
+
+// Yeah yeah, I know I already have this in 7z decompression
+bool FormatBytes(
+    unsigned long long bytes,
+    char *output,
+    size_t outputSize)
+{
+    if (!output || outputSize == 0)
+        return false;
+
+    static const char *units[] =
+    {
+        "B", "KB", "MB", "GB", "TB"
+    };
+
+    double value = (double)bytes;
+    unsigned int unitIndex = 0;
+
+    while (value >= 1024.0 && unitIndex < 4)
+    {
+        value /= 1024.0;
+        ++unitIndex;
+    }
+
+    int result;
+
+    if (unitIndex == 0)
+    {
+        result = _snprintf(
+            output,
+            outputSize,
+            "%I64u B",
+            bytes);
+    }
+    else if (value >= 100.0)
+    {
+        result = _snprintf(
+            output,
+            outputSize,
+            "%.0f %s",
+            value,
+            units[unitIndex]);
+    }
+    else if (value >= 10.0)
+    {
+        result = _snprintf(
+            output,
+            outputSize,
+            "%.1f %s",
+            value,
+            units[unitIndex]);
+    }
+    else
+    {
+        result = _snprintf(
+            output,
+            outputSize,
+            "%.2f %s",
+            value,
+            units[unitIndex]);
+    }
+
+    // Older Microsoft implementations of _snprintf may not terminate
+    // the output when truncation occurs.
+    output[outputSize - 1] = '\0';
+
+    return result >= 0 && (size_t)result < outputSize;
+}
+
 static bool WriteBody(FILE *file, const char *data, int len, unsigned long long *totalWritten, char *outputBuffer)
 {
     if (len <= 0)
@@ -442,7 +511,7 @@ int DumpResponse(XboxTLSContext *ctx,
 
     unsigned long long totalWritten = 0;
 
-    unsigned long long lastKBWritten = 0;
+    unsigned long long lastBytesWritten = 0;
     unsigned long long KBdownloaded = 0;
 
     unsigned long long totalContentLength = 0;
@@ -749,21 +818,31 @@ int DumpResponse(XboxTLSContext *ctx,
 
                     endTime = (getClockLong() * (unsigned long long)1000) / (CLOCKS_PER_SEC);
                     startTime = endTime;
-                    lastKBWritten = tempTotalWritten / (1024);
+                    lastBytesWritten = tempTotalWritten;
                     continue;
                 }
                 else
                 {
+                    char humanReadableDownloadedBytes[1024] = "";
+                    char humanReadableTotalBytes[1024] = "";
+                    char humanReadableSpeed[1024] = "";
+                    char humanReadableAverageSpeed[1024] = "";
 
-                    unsigned long long KBtotalSize = totalContentLength / 1024;
-                    unsigned long long KBdownloaded = tempTotalWritten / (1024);
-                    unsigned long long downloadSpeed = ((KBdownloaded - lastKBWritten) * 1000) / (endTime - startTime);
-                    unsigned long long timeRemaining = (KBtotalSize - KBdownloaded) / (tempTotalWritten / (endTime - beginTime)); // KB / (KB/sec)
+                    unsigned long long elapsedTime = (endTime - beginTime) / 1000;
+                    unsigned long long downloadSpeed = ( (tempTotalWritten - lastBytesWritten) * 1000 ) / (endTime - startTime);
+                    unsigned long long bytesRemaining = totalContentLength - tempTotalWritten;
+                    unsigned long long timeRemaining = bytesRemaining / downloadSpeed;
+
+                    FormatBytes(tempTotalWritten, humanReadableDownloadedBytes, sizeof(humanReadableDownloadedBytes));
+                    FormatBytes(totalContentLength, humanReadableTotalBytes, sizeof(humanReadableDownloadedBytes));
+                    FormatBytes(downloadSpeed, humanReadableSpeed, sizeof(humanReadableDownloadedBytes));
+                    FormatBytes( (tempTotalWritten * 1000) / (endTime - beginTime), humanReadableAverageSpeed, sizeof(humanReadableDownloadedBytes));
+
                     endTime = (getClockLong() * (unsigned long long)1000) / (CLOCKS_PER_SEC);
                     startTime = endTime;
-                    lastKBWritten = KBdownloaded;
-                    printFunction("Downloaded %llu KB out of %llu KB, Speed: %llu KB/s, Average: %llu KB/s, Time %llu s, Time Remaining %llu:%llu:%llu s\n",
-                                  KBdownloaded, KBtotalSize, downloadSpeed, tempTotalWritten / (endTime - beginTime), (endTime - beginTime) / (unsigned long long)1000, timeRemaining / (unsigned long long)3600, (timeRemaining / (unsigned long long)60) % (unsigned long long)60, timeRemaining % (unsigned long long)60);
+                    lastBytesWritten = tempTotalWritten;
+                    printFunction("Downloaded %s out of %s, Speed: %s/s, Average: %s/s, Time %llu s, Time Remaining %llu:%llu:%llu s\n",
+                                  humanReadableDownloadedBytes, humanReadableTotalBytes, humanReadableSpeed, humanReadableAverageSpeed, (endTime - beginTime) / (unsigned long long)1000, timeRemaining / (unsigned long long)3600, (timeRemaining / (unsigned long long)60) % (unsigned long long)60, timeRemaining % (unsigned long long)60);
                 }
             }
         }

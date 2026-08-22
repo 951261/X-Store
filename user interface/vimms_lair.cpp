@@ -273,6 +273,8 @@ static int is_valid_game_href(const char *href)
 {
     if (!href)
         return 0;
+    if (strcmp(href, "/vault/999999") == 0)
+        return 0;
     if (strncmp(href, "/vault/", 7) != 0)
         return 0;
 

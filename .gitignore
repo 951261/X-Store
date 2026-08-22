@@ -16,6 +16,12 @@ ipch
 
 *.sdf
 
+**.sdf
+
+*.ipch
+
+**.ipch
+
 **/*.sdf
 
 ipch
