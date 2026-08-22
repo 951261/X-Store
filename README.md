@@ -40,6 +40,8 @@ If you are on version 0.2.10 or later, you can update to the latest version by s
 
 [See Compiling](COMPILING.md)
 
+**Warning:** The codebase for this program is VERY messy. I am slowly fixing it up, but don't set your expectations too high. 
+
 ## How the Code Works
 
 [Read the Code Breakdown](how_it_works.md)
