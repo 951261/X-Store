@@ -830,13 +830,14 @@ int DumpResponse(XboxTLSContext *ctx,
 
                     unsigned long long elapsedTime = (endTime - beginTime) / 1000;
                     unsigned long long downloadSpeed = ( (tempTotalWritten - lastBytesWritten) * 1000 ) / (endTime - startTime);
+                    unsigned long long averageDownloadSpeed = (tempTotalWritten * 1000) / (endTime - beginTime);
                     unsigned long long bytesRemaining = totalContentLength - tempTotalWritten;
-                    unsigned long long timeRemaining = bytesRemaining / downloadSpeed;
+                    unsigned long long timeRemaining = bytesRemaining / averageDownloadSpeed;
 
                     FormatBytes(tempTotalWritten, humanReadableDownloadedBytes, sizeof(humanReadableDownloadedBytes));
                     FormatBytes(totalContentLength, humanReadableTotalBytes, sizeof(humanReadableDownloadedBytes));
                     FormatBytes(downloadSpeed, humanReadableSpeed, sizeof(humanReadableDownloadedBytes));
-                    FormatBytes( (tempTotalWritten * 1000) / (endTime - beginTime), humanReadableAverageSpeed, sizeof(humanReadableDownloadedBytes));
+                    FormatBytes(averageDownloadSpeed, humanReadableAverageSpeed, sizeof(humanReadableDownloadedBytes));
 
                     endTime = (getClockLong() * (unsigned long long)1000) / (CLOCKS_PER_SEC);
                     startTime = endTime;
