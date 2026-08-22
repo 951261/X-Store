@@ -460,9 +460,9 @@ bool XboxTLS_Connect(XboxTLSContext* ctx, const char* ip, const char* hostname, 
         printf("Connect: inet_addr OK\n");
 
         if (connect(sock, (struct sockaddr*)&sa, sizeof(sa)) == SOCKET_ERROR) {
-            debug_tls("connect() failed.");
             int wsaErr = WSAGetLastError();
             char debugBuf[64];
+            debug_tls("connect() failed.");
             sprintf(debugBuf, "WSA Error: %d", wsaErr);
             debug_tls(debugBuf);
             closesocket(sock);
