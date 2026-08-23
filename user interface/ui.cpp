@@ -419,7 +419,7 @@ static SearchResultSelection ShowSearchResultsUI(const GameList *list)
 		}
 		if (pressed & XINPUT_GAMEPAD_RIGHT_SHOULDER)
 		{
-			if (selected < 20) selected +=20;
+			if (selected < 20) selected +=18;
 			selected += 20;
 
 			if (selected >= (int)list->count)
