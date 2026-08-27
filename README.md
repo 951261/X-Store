@@ -5,6 +5,9 @@ This project was intentended to be a proof of concept xbox 360 game downloader. 
 
 Not affiliated with the [free60 project](https://free60.org)
 
+## NOTICE: Currently Broken
+Vimm has added some anti scraping measures, so X-Store is currently not working. See [#52](https://github.com/951261/X-Store/issues/52)
+
 ## What is it?
 
 The X Store is a homebrew application for the Xbox 360 that allows games to be directly downloaded onto the Xbox 360.
