@@ -6,7 +6,7 @@ This project was intentended to be a proof of concept xbox 360 game downloader. 
 Not affiliated with the [free60 project](https://free60.org)
 
 ## NOTICE: Currently Broken
-Vimm has added some anti scraping measures, so X-Store is currently not working. See [#52](https://github.com/951261/X-Store/issues/52)
+Vimm has added some anti scraping measures, so X-Store is currently not working. See [#52](https://github.com/951261/X-Store/issues/52). [Vimm wrote a post](https://vimm.net/bbs/?p=viewPost&Post=39033) on why this was done (mainly due to web bots and vibe-coded download managers). These reasons are similar to why Myrient shut down. If you want to support Vimm's Lair, consider disabling you ad blocker whilst on the site. P.S. I have no affiliation with Vimm's Lair, I just believe it is a pretty cool website. 
 
 ## What is it?
 
