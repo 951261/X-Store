@@ -955,6 +955,8 @@ int downloadFileHTTPS(const std::string URL, const std::string fileName, char *d
 
     int httpStatus = 0;
 
+    printFunction("Attempting to download: %s\n", URL.c_str());
+
     if ((domain = (char *)malloc(URL.length() + 1)) == NULL)
     {
         ERROR("MALLOC failed");

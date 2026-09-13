@@ -4,25 +4,9 @@
 #include <string.h>
 
 
-typedef struct
-{
-    char *name;
-    char *link;
-} GameEntry;
 
-typedef struct
-{
-    GameEntry *items;
-    size_t count;
-    size_t capacity;
-} GameList;
 
-typedef struct
-{
-    char *id;
-    char *disc;
-    char *version;
-} MediaEntry;
+
 
 typedef struct
 {

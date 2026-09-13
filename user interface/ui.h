@@ -5,6 +5,11 @@
 #include <vector>
 #include <xtl.h>
 
+// This .json file contains the download links for Xbox games
+#define ORIGINAL_XBOX_GAMES_LIST "https://gist.githubusercontent.com/951261/4d8a70e45a0e1c2e9ef4d32c5f95a9d4/raw/"
+#define XBOX360_GAMES_LIST "https://gist.githubusercontent.com/951261/6bab0fe66c22f7b5c1e0a1afc3719f1f/raw/"
+#define XBLA_GAMES_LIST "https://gist.githubusercontent.com/951261/e24ffb4d7793f7e992f237425a502765/raw/"
+
 enum DownloadType {
     ORIGINAL_XBOX = 1,
     XBOX_360,

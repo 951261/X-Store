@@ -19,11 +19,11 @@ MAIN FUNCTION : showUI
 #include <updater.h>
 
 #include "ui.h"
-#include "vimms_lair.h"
 #include <vector>
+#include "JSON_parser.h"
 
 #define TEXTBUFFER_SIZE (1024 * 10)
-#define HTML_BUFFER_CAPACITY (1024 * 1024 * 4);
+#define HTML_BUFFER_CAPACITY (1024 * 1024 * 10);
 
 static const SHORT NAVIGATION_STICK_THRESHOLD = 16000;
 static const DWORD NAVIGATION_REPEAT_DELAY_MS = 350;
@@ -314,7 +314,7 @@ static SearchResultSelection MakeSearchResultSelection(
     return selection;
 }
 
-static void RenderSearchResults(const GameList *list, int selected, int scroll)
+static void RenderSearchResults(const std::vector<GameEntry> list, int selected, int scroll)
 {
     const int visibleRows = 20;
     char outputTextBuffer[TEXTBUFFER_SIZE] = " ";
@@ -322,7 +322,7 @@ static void RenderSearchResults(const GameList *list, int selected, int scroll)
     ClearConsole();
     _snprintf(outputTextBuffer, TEXTBUFFER_SIZE - strlen(outputTextBuffer), "Vimm's Lair search results\n\n");
 
-    if (!list || list->count == 0)
+    if (list.empty())
     {
         _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "No games found.\n\n");
         _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "B: Back\n");
@@ -332,13 +332,13 @@ static void RenderSearchResults(const GameList *list, int selected, int scroll)
     for (int row = 0; row < visibleRows; ++row)
     {
         int index = scroll + row;
-        if (index >= (int)list->count)
+        if (index >= (int)list.size())
             break;
 
         _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "%c %2d. %s\n",
                   index == selected ? '>' : ' ',
                   index + 1,
-                  list->items[index].name);
+                  list[index].name.c_str());
     }
 
     _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "\nA: Download Now   Y: Add to Queue   B: Back   D-Pad/Left Stick: Move\n");
@@ -346,9 +346,9 @@ static void RenderSearchResults(const GameList *list, int selected, int scroll)
     dprintf("%s", outputTextBuffer); // draw in one go to prevent flickering
 }
 
-static SearchResultSelection ShowSearchResultsUI(const GameList *list)
+static SearchResultSelection ShowSearchResultsUI(const std::vector<GameEntry> list)
 {
-    if (!list || list->count == 0)
+    if (list.empty())
     {
         RenderSearchResults(list, 0, 0);
 
@@ -408,8 +408,8 @@ static SearchResultSelection ShowSearchResultsUI(const GameList *list)
         if (selected < 0)
             selected = 0;
 
-        if (selected >= (int)list->count)
-            selected = (int)list->count - 1;
+        if (selected >= (int)list.size())
+            selected = (int)list.size() - 1;
 
         if (selected < scroll)
             scroll = selected;
@@ -426,28 +426,28 @@ static SearchResultSelection ShowSearchResultsUI(const GameList *list)
     }
 }
 
-static void RenderMediaResults(const MediaList *list, const char *gameName, int selected)
+static void RenderMediaResults(const std::vector<MediaEntry> list, const char *gameName, int selected)
 {
     char outputTextBuffer[TEXTBUFFER_SIZE] = " ";
 
     ClearConsole();
     _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "Choose download media\n\n");
 
-    if (!list || list->count == 0)
+    if (list.empty())
     {
         _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "No media IDs found.\n\n");
         _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "B: Back\n");
         return;
     }
 
-    for (int i = 0; i < (int)list->count; ++i)
+    for (int i = 0; i < (int)list.size(); ++i)
     {
         _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "%c %2d. %s Disc %s version %s\n",
                   i == selected ? '>' : ' ',
                   i + 1,
                   gameName ? gameName : "Selected game",
-                  list->items[i].disc,
-                  list->items[i].version);
+                  list[i].disc.c_str(),
+                  list[i].version.c_str());
     }
 
     _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "\nA: Select   B: Back   D-Pad/Left Stick: Move\n");
@@ -455,9 +455,9 @@ static void RenderMediaResults(const MediaList *list, const char *gameName, int 
     dprintf("%s", outputTextBuffer);
 }
 
-static int ShowMediaResultsUI(const MediaList *list, const char *gameName)
+static int ShowMediaResultsUI(const std::vector<MediaEntry> list, const char *gameName)
 {
-    if (!list || list->count == 0)
+    if (list.empty())
     {
         RenderMediaResults(list, gameName, 0);
         while (true)
@@ -475,7 +475,7 @@ static int ShowMediaResultsUI(const MediaList *list, const char *gameName)
         }
     }
 
-    if (list->count == 1)
+    if (list.size() == 1)
         return 0;
 
     int selected = 0;
@@ -514,8 +514,8 @@ static int ShowMediaResultsUI(const MediaList *list, const char *gameName)
         if (selected < 0)
             selected = 0;
 
-        if (selected >= (int)list->count)
-            selected = (int)list->count - 1;
+        if (selected >= (int)list.size())
+            selected = (int)list.size() - 1;
 
         if (moved)
             RenderMediaResults(list, gameName, selected);
@@ -688,20 +688,19 @@ std::vector<GameData> showUI()
         switch (downloadType)
         {
         case ORIGINAL_XBOX:
-            searchURL = "https://vimm.net/vault/?p=list&system=Xbox&q=";
+            searchURL = ORIGINAL_XBOX_GAMES_LIST;
             break;
         case XBOX_360:
-            searchURL = "https://vimm.net/vault/?p=list&system=Xbox360&q=";
+            searchURL = XBOX360_GAMES_LIST;
             break;
         case XBLA:
-            searchURL = "https://vimm.net/vault/?p=list&system=X360-D&q=";
+            searchURL = XBLA_GAMES_LIST;
             break;
         default:
             free(buffer);
             continue;
         }
-        searchURL.append(UrlEncodeQuery(gameSearchString));
-
+        
         if (downloadFileHTTPS(searchURL, "", buffer, &outputBufferSize, false, dprintf) != 200)
         {
             dprintf("Download game list failed.\n");
@@ -710,20 +709,22 @@ std::vector<GameData> showUI()
             continue;
         }
 
-        GameList list = {0};
-        if (!parse_vimm_search_results(buffer, &list))
-        {
-            dprintf("Failed to parse search results.\n");
-            free_game_list(&list);
-            free(buffer);
-            Sleep(500);
-            continue;
-        }
+        char buff_tmp[105] = "";
 
-        SearchResultSelection searchSelection = ShowSearchResultsUI(&list);
+        strncpy(buff_tmp, buffer, 100);
+        buff_tmp[100] = '\0';
+
+        log_printf("\n\nFirst 300 chars of JSON data: %s\n", buff_tmp);
+
+        log_printf("Parsing JSON search results into a list\n");
+        std::vector<GameEntry> list = parse_JSON_search_results(buffer, gameSearchString);
+
+        log_printf("JSON parsed succesfully, %d search results\n", list.size());
+
+        SearchResultSelection searchSelection = ShowSearchResultsUI(list);
         if (searchSelection.action == SEARCH_RESULT_CANCEL || searchSelection.index < 0)
         {
-            free_game_list(&list);
+            log_printf("Failed to get search result selection from user\n");
             free(buffer);
             continue;
         }
@@ -732,46 +733,32 @@ std::vector<GameData> showUI()
         bool downloadImmediately =
             searchSelection.action == SEARCH_RESULT_DOWNLOAD_NOW;
 
-        std::string selectedURL = "https://vimm.net";
-        selectedURL.append(list.items[selected].link);
+        log_printf("Parsing disk versions\n");
 
-        outputBufferSize = HTML_BUFFER_CAPACITY;
-        if (downloadFileHTTPS(selectedURL, "", buffer, &outputBufferSize, false, dprintf) != 200)
-        {
-            dprintf("Download game version list failed.\n");
-            free_game_list(&list);
-            free(buffer);
-            Sleep(500);
-            continue;
-        }
-
-        MediaList mediaList = {0};
-        if (!parse_vimm_media_ids(buffer, &mediaList) || mediaList.count == 0)
+        std::vector<MediaEntry> mediaList = parse_JSON_disk_versions(list[selected]);
+        if (mediaList.empty())
         {
             dprintf("Failed to parse media ID from selected game page.\n");
-            free_media_list(&mediaList);
-            free_game_list(&list);
             free(buffer);
             Sleep(500);
             continue;
         }
 
-        int selectedMedia = ShowMediaResultsUI(&mediaList, list.items[selected].name);
+        int selectedMedia = ShowMediaResultsUI(mediaList, list[selected].name.c_str());
         if (selectedMedia < 0)
         {
-            free_media_list(&mediaList);
-            free_game_list(&list);
+            dprintf("Failed to select a valid media\n");
             free(buffer);
             continue;
         }
 
         std::string finalDownloadURL = DOWNLOAD_DOMAIN "/?mediaId=";
-        finalDownloadURL.append(mediaList.items[selectedMedia].id);
+        finalDownloadURL.append(mediaList[selectedMedia].id.c_str());
 
         GameData gameData;
         ZeroMemory(&gameData, sizeof(gameData));
         gameData.downloadType = downloadType;
-        strncpy(gameData.selectedGameName, list.items[selected].name, sizeof(gameData.selectedGameName) - 1);
+        strncpy(gameData.selectedGameName, list[selected].name.c_str(), sizeof(gameData.selectedGameName) - 1);
         strncpy(gameData.selectedGameURL, finalDownloadURL.c_str(), sizeof(gameData.selectedGameURL) - 1);
         if (downloadImmediately)
             gamesInfo.clear();
@@ -783,11 +770,9 @@ std::vector<GameData> showUI()
                     ? "Preparing to download %s Disc %s version %s\n"
                     : "Queued %s Disc %s version %s\n",
                 gameData.selectedGameName,
-                mediaList.items[selectedMedia].disc,
-                mediaList.items[selectedMedia].version);
+                mediaList[selectedMedia].disc.c_str(),
+                mediaList[selectedMedia].version.c_str());
 
-        free_media_list(&mediaList);
-        free_game_list(&list);
         free(buffer);
 
         if (downloadImmediately)

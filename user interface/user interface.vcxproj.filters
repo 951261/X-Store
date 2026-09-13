@@ -17,7 +17,7 @@
     <ClCompile Include="ui.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="vimms_lair.cpp">
+    <ClCompile Include="JSON_parser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -25,7 +25,7 @@
     <ClInclude Include="ui.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="vimms_lair.h">
+    <ClInclude Include="JSON_parser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -226,12 +226,12 @@
     <None Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="JSON_parser.cpp" />
     <ClCompile Include="ui.cpp" />
-    <ClCompile Include="vimms_lair.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="JSON_parser.h" />
     <ClInclude Include="ui.h" />
-    <ClInclude Include="vimms_lair.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
