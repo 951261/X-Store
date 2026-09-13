@@ -66,11 +66,16 @@ std::vector<GameEntry> parse_JSON_search_results(const char *JSON_text_buffer, c
             }
 
             cJSON *version = cJSON_GetObjectItemCaseSensitive(gameData, "version");
-
             if (cJSON_IsString(version) && (version->valuestring != NULL))
             {
                 game.name += " v";
                 game.name += version->valuestring;
+            }
+
+            cJSON *digitalType = cJSON_GetObjectItemCaseSensitive(gameData, "media_type"); // only applies to XBOX-360 Digital downloads (e.g. XBLA, DLC, Title Update, etc...)
+            if (digitalType != NULL && cJSON_IsString(digitalType) && (digitalType->valuestring != NULL)) {
+                game.name += " ";
+                game.name += digitalType->valuestring;
             }
 
             gamesList.push_back(game); // append the game data to the vector
