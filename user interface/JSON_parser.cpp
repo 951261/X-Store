@@ -106,6 +106,7 @@ std::vector<MediaEntry> parse_JSON_disk_versions(const GameEntry game)
         mediaEntries.push_back(mediaEntry);
     }
 
+    cJSON_Delete(json);
 	return mediaEntries;
     
 }
