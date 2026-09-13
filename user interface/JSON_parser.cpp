@@ -101,7 +101,7 @@ std::vector<MediaEntry> parse_JSON_disk_versions(const GameEntry game)
 
         cJSON *downloadFields = cJSON_GetObjectItemCaseSensitive(disc, "download_fields");
 
-        cJSON *discId = cJSON_GetObjectItemCaseSensitive(downloadFields, "media_id");
+        cJSON *discId = cJSON_GetObjectItemCaseSensitive(downloadFields, "mediaId");
         cJSON *discNumber = cJSON_GetObjectItemCaseSensitive(disc, "disc");
         cJSON *discVesion = cJSON_GetObjectItemCaseSensitive(disc, "version");
 
