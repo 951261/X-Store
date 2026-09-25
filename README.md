@@ -5,7 +5,7 @@ This project was intentended to be a proof of concept xbox 360 game downloader. 
 
 Not affiliated with the [free60 project](https://free60.org)
 
-## NOTICE: Working Again!
+## NOTICE: Not Working (Again)
 X Store is working again! For a while, some changes on Vimm's Lair prevented X Store from working. As frustrating as this may have been, Vimm made the changes for good reason. If you want to support Vimm's Lair, consider disabling you ad blocker whilst on the site. P.S. I have no affiliation with Vimm's Lair, I just believe it is a pretty cool website. 
 
 ## What is it?
