@@ -5,10 +5,36 @@
 #include <vector>
 #include <xtl.h>
 
-// This .json file contains the download links for Xbox games
-#define ORIGINAL_XBOX_GAMES_LIST "https://gist.githubusercontent.com/951261/4d8a70e45a0e1c2e9ef4d32c5f95a9d4/raw/"
-#define XBOX360_GAMES_LIST "https://gist.githubusercontent.com/951261/6bab0fe66c22f7b5c1e0a1afc3719f1f/raw/"
-#define XBLA_GAMES_LIST "https://gist.githubusercontent.com/951261/e24ffb4d7793f7e992f237425a502765/raw/"
+#include "settings.h"
+
+#define XBLA_DOWNLOAD_BASE_URL "https://archive.org"
+
+const std::string XBLA_URL_PATHS[] = {
+    "microsoft_xbox360_digital_part1",
+    "microsoft_xbox360_digital_part2",
+    "microsoft_xbox360_digital_part3",
+    "microsoft_xbox360_digital_part4",
+    "microsoft_xbox360_digital_part5",
+    "microsoft_xbox360_digital_part6",
+    "microsoft_xbox360_digital_part7",
+
+    "microsoft_xbox360_title-updates", // Title Updates
+
+    // DLC
+    "XBOX_360_DLC_1",
+    "XBOX_360_DLC_2",
+    "XBOX_360_DLC_3",
+    "XBOX_360_DLC_4",
+    "XBOX_360_DLC_5",
+    "XBOX_360_DLC_6",
+
+    // XBLIG
+    "XBOX_360_XBLIG_1",
+    "XBOX_360_XBLIG_2",
+    "XBOX_360_XBLIG_3",
+    "XBOX_360_XBLIG_4"
+    
+};
 
 enum DownloadType {
     ORIGINAL_XBOX = 1,
@@ -34,6 +60,8 @@ DWORD OpenKeyboardToString(
     LPCWSTR description,
     LPCWSTR defaultText
 );
+
+std::string UrlEncodeQuery(const std::string &value); // needed in JSON_parser.cpp
 
 std::vector<GameData> showUI();
 

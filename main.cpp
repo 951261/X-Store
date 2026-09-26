@@ -272,9 +272,6 @@ static std::string getPathNameIndex(std::string str, const int index)
 
 int getGame(std::string URL, const std::string sevenZipFile, const std::string isoFolder, const std::string outputFolder, const int downloadType)
 {
-	std::string backupDomain = SECONDARY_DOWNLOAD_DOMAIN;
-	std::string expectedDomain = DOWNLOAD_DOMAIN;
-
 	// goto skipDownloadAndExtract;
 
 	int httpStatus = downloadFileHTTPS(URL, sevenZipFile, NULL, NULL, true, dprintf);
@@ -282,21 +279,7 @@ int getGame(std::string URL, const std::string sevenZipFile, const std::string i
 	{
 		return EXIT_FAILURE;
 	}
-	else if (httpStatus >= 400 && URL.rfind(expectedDomain, 0) == 0)
-	{ // page not found. Try different domain.
-		URL.replace(0, expectedDomain.length(), backupDomain);
-
-		dprintf("Trying alternate download link\n");
-
-		if (downloadFileHTTPS(URL, sevenZipFile, NULL, NULL, true, dprintf) != 200)
-		{
-			return EXIT_FAILURE;
-		}
-	}
-	else if (httpStatus == 200)
-	{
-	}
-	else
+	else if (httpStatus != 200)
 	{
 		return EXIT_FAILURE;
 	}

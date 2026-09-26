@@ -1,5 +1,6 @@
 #include "JSON_parser.h"
 #include "../updater/cJSON.h"
+#include "ui.h"
 #include "OutputConsole.h"
 #include <algorithm>
 #include <string>
@@ -20,6 +21,7 @@ bool findStringIC(const std::string & strHaystack, const std::string & strNeedle
 std::vector<GameEntry> parse_JSON_search_results(const char *JSON_text_buffer, const std::string searchString)
 {
     std::vector<GameEntry> gamesList;
+    std::string gameDownloadURLBase;
 
     cJSON *json = cJSON_Parse(JSON_text_buffer);
 
@@ -27,56 +29,50 @@ std::vector<GameEntry> parse_JSON_search_results(const char *JSON_text_buffer, c
         dprintf("JSON parsing failed with error : %s\n", cJSON_GetErrorPtr());
     }
 
-    cJSON *gameData = NULL;
-    cJSON_ArrayForEach(gameData, json)
+    cJSON *files = cJSON_GetObjectItemCaseSensitive(json, "files");
+    cJSON* alternate_locations = cJSON_GetObjectItemCaseSensitive(json, "alternate_locations");
+    cJSON *workable_download_servers = cJSON_GetObjectItemCaseSensitive(alternate_locations, "workable");
+
+    if(cJSON_IsArray(workable_download_servers)) {
+        cJSON *first_workable_server = cJSON_GetArrayItem(workable_download_servers, 0);
+        if(first_workable_server != NULL) {
+            cJSON *server_domain = cJSON_GetObjectItemCaseSensitive(first_workable_server, "server");
+            cJSON *dir_path = cJSON_GetObjectItemCaseSensitive(first_workable_server, "dir");
+            
+            if(cJSON_IsString(server_domain) && cJSON_IsString(dir_path) && server_domain->valuestring != NULL && dir_path->valuestring != NULL) {
+                gameDownloadURLBase = std::string("https://") + std::string(server_domain->valuestring) + std::string(dir_path->valuestring);
+            } else {
+                log_printf("Server domain/path is not a string\n");
+                cJSON_Delete(json); // clean up
+                return gamesList;
+            }
+        } else {
+            log_printf("workable is NULL\n");
+            cJSON_Delete(json); // clean up
+            return gamesList;
+        }
+    } else {
+        log_printf("Workable is not an array\n");
+        cJSON_Delete(json); // clean up
+        return gamesList;
+    }
+
+    cJSON *fileName = NULL;
+    cJSON_ArrayForEach(fileName, files)
     {
-        cJSON *gameName = cJSON_GetObjectItemCaseSensitive(gameData, "game_name");
-        if (cJSON_IsString(gameName) && (gameName->valuestring != NULL))
+        cJSON *gameName = cJSON_GetObjectItemCaseSensitive(fileName, "name");
+        cJSON *fileFormat = cJSON_GetObjectItemCaseSensitive(fileName, "format");
+        if (cJSON_IsString(gameName) && (gameName->valuestring != NULL)
+            && cJSON_IsString(fileFormat) && (fileFormat->valuestring != NULL))
         {
             GameEntry game;
             game.name = gameName->valuestring;
-            char* tmpStr = cJSON_PrintUnformatted(gameData);
-            game.JSONData = tmpStr;
-            cJSON_free(tmpStr);
+            game.downloadURL = gameDownloadURLBase + std::string("/") + UrlEncodeQuery(game.name); 
 
-            if(findStringIC(game.name, searchString) != true) {
+            if(findStringIC(game.name, searchString) != true || strcmp(fileFormat->valuestring, "ZIP") != 0) {
                 // if the search text is not found in the game name, then continue to the next entry
+                // Also, if the search result is in an unsupported format, continue
                 continue;
-            }
-            
-            cJSON *regions = cJSON_GetObjectItemCaseSensitive(gameData, "region");
-            if (cJSON_GetArraySize(regions))
-            {
-                game.name += " (";
-
-                cJSON *region;
-                bool multiRegion = false;
-                cJSON_ArrayForEach(region, regions)
-                {
-                    if(multiRegion) game.name += ", ";
-
-                    if (cJSON_IsString(region) && (region->valuestring != NULL))
-                    {
-                        game.name += region->valuestring;
-                    }
-
-                    multiRegion = true;
-                }
-                game.name += ")";
-            }
-
-            cJSON *version = cJSON_GetObjectItemCaseSensitive(gameData, "version");
-            if (cJSON_IsString(version) && (version->valuestring != NULL))
-            {
-                game.name += " v";
-                game.name += version->valuestring;
-            }
-
-            cJSON *digitalType = cJSON_GetObjectItemCaseSensitive(gameData, "media_type"); // only applies to XBOX-360 Digital downloads (e.g. XBLA, DLC, Title Update, etc...)
-            if (digitalType != NULL && cJSON_IsString(digitalType) && (digitalType->valuestring != NULL)) {
-                game.name += " (";
-                game.name += digitalType->valuestring;
-                game.name += ")";
             }
 
             gamesList.push_back(game); // append the game data to the vector
@@ -86,36 +82,5 @@ std::vector<GameEntry> parse_JSON_search_results(const char *JSON_text_buffer, c
     cJSON_Delete(json); // clean up
     return gamesList;
 }
-
-// takes the list of game versions (e.g. disk 1 v1.0, disk 1 v1.1, etc...) and returns a vector of game disk versions
-std::vector<MediaEntry> parse_JSON_disk_versions(const GameEntry game)
-{
-    std::vector<MediaEntry> mediaEntries;
-
-    cJSON *json = cJSON_Parse(game.JSONData.c_str());
-
-    cJSON *discs = cJSON_GetObjectItemCaseSensitive(json, "discs");
-    cJSON *disc;
-    cJSON_ArrayForEach(disc, discs) {
-        MediaEntry mediaEntry;
-
-        cJSON *downloadFields = cJSON_GetObjectItemCaseSensitive(disc, "download_fields");
-
-        cJSON *discId = cJSON_GetObjectItemCaseSensitive(downloadFields, "mediaId");
-        cJSON *discNumber = cJSON_GetObjectItemCaseSensitive(disc, "disc");
-        cJSON *discVesion = cJSON_GetObjectItemCaseSensitive(disc, "version");
-
-        if (cJSON_IsString(discId) && (discId->valuestring != NULL)) mediaEntry.id = discId->valuestring;
-        if (cJSON_IsString(discNumber) && (discNumber->valuestring != NULL)) mediaEntry.disc = discNumber->valuestring;
-        if (cJSON_IsString(discVesion) && (discVesion->valuestring != NULL)) mediaEntry.version = discVesion->valuestring;
-        
-        mediaEntries.push_back(mediaEntry);
-    }
-
-    cJSON_Delete(json);
-	return mediaEntries;
-    
-}
-
 
 

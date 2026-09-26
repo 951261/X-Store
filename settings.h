@@ -3,13 +3,11 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
-#define CURRENT_VERSION "0.2.12"
+#define CURRENT_VERSION "0.2.13"
 
 // Should be large enough (I hope)
 #define MAX_TEXT_LENGTH 512
 
-#define DOWNLOAD_DOMAIN             "https://dl2.vimm.net"
-#define SECONDARY_DOWNLOAD_DOMAIN   "https://dl3.vimm.net"
 
 #define FATX_SAFE_FOLDER_NAME_LEN 40
 

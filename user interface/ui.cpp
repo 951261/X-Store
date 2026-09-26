@@ -11,6 +11,8 @@ MAIN FUNCTION : showUI
 #include <stdio.h>
 #include <ctype.h>
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <string>
 
 #include <OutputConsole.h>
@@ -21,6 +23,7 @@ MAIN FUNCTION : showUI
 #include "ui.h"
 #include <vector>
 #include "JSON_parser.h"
+#include "../xiso extract/file-stuff.h"
 
 #define TEXTBUFFER_SIZE (1024 * 10)
 #define HTML_BUFFER_CAPACITY (1024 * 1024 * 10);
@@ -77,7 +80,7 @@ static enum DownloadType GetDownloadTypeFromIndex(int index)
     }
 }
 
-static std::string UrlEncodeQuery(const std::string &value)
+std::string UrlEncodeQuery(const std::string &value)
 {
     static const char hex[] = "0123456789ABCDEF";
     std::string encoded;
@@ -89,10 +92,6 @@ static std::string UrlEncodeQuery(const std::string &value)
         if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~')
         {
             encoded += (char)c;
-        }
-        else if (c == ' ')
-        {
-            encoded += '+';
         }
         else
         {
@@ -326,6 +325,7 @@ static void RenderSearchResults(const std::vector<GameEntry> list, int selected,
     {
         _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "No games found.\n\n");
         _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "B: Back\n");
+        dprintf("%s", outputTextBuffer);
         return;
     }
 
@@ -619,6 +619,58 @@ DWORD OpenKeyboardToString(
     return ERROR_SUCCESS;
 }
 
+bool isCached(const std::string path) {
+    log_printf("Searching for cached file %s\n", path.c_str());
+    std::ifstream file(std::string("game:\\cache\\") + path);
+
+    if (!file.is_open()) {
+        log_printf("Failed to open cache file %s.\n", path.c_str());
+        return false;
+    }
+    file.close();
+
+    return true;
+}
+
+bool loadCache(std::string path, char * buffer) {
+    log_printf("Reading cached file %s\n", path.c_str());
+    std::ifstream file(std::string("game:\\cache\\") + path);
+
+    if (!file.is_open()) {
+        log_printf("Failed to open cache file %s.\n", path.c_str());
+        return false;
+    }
+
+    std::stringstream streamBuffer;
+    streamBuffer << file.rdbuf(); // Read the entire file buffer into the stringstream
+    
+    std::string file_contents = streamBuffer.str(); // Extract the string
+
+    strcpy(buffer, file_contents.c_str());
+
+    file.close();
+
+    return true;
+}
+
+bool writeCache(std::string path, const char * buffer) {
+    log_printf("Writing cached file %s\n", path.c_str());
+
+    customForceMkdir("game:\\cache\\");
+    std::ofstream outFile(std::string("game:\\cache\\") + path);
+
+    if (!outFile) {
+        log_printf("Error opening %s file for writing!", path.c_str());
+        return false;
+    }
+
+    outFile << buffer;
+
+    outFile.close();
+
+    return true;
+}
+
 std::vector<GameData> showUI()
 {
     Sleep(1000);
@@ -643,6 +695,7 @@ std::vector<GameData> showUI()
         Sleep(800);
     }
 
+main_UI_loop_start:
     Sleep(250);
 
     while (true)
@@ -688,38 +741,54 @@ std::vector<GameData> showUI()
         switch (downloadType)
         {
         case ORIGINAL_XBOX:
-            searchURL = ORIGINAL_XBOX_GAMES_LIST;
-            break;
+            searchURL = ""; // not supported yet
+            free(buffer);
+            continue;
         case XBOX_360:
-            searchURL = XBOX360_GAMES_LIST;
-            break;
+            searchURL = ""; // XBOX360_GAMES_LIST;
+            free(buffer);
+            continue;
         case XBLA:
-            searchURL = XBLA_GAMES_LIST;
+            searchURL = XBLA_DOWNLOAD_BASE_URL "/metadata";
             break;
         default:
             free(buffer);
             continue;
         }
-        
-        if (downloadFileHTTPS(searchURL, "", buffer, &outputBufferSize, false, dprintf) != 200)
-        {
-            dprintf("Download game list failed.\n");
-            free(buffer);
-            Sleep(500);
-            continue;
+
+        std::vector<GameEntry> list;
+
+		for (int i = 0; i < sizeof(XBLA_URL_PATHS) / sizeof(XBLA_URL_PATHS[0]); i++) {
+			std::string path = XBLA_URL_PATHS[i];
+
+            if(!(isCached(path) && loadCache(path, buffer))) {
+
+                outputBufferSize = HTML_BUFFER_CAPACITY; // reset outputBufferSize
+                if (downloadFileHTTPS(searchURL + std::string("/") + path, "", buffer, &outputBufferSize, false, dprintf) != 200)
+                {
+                    dprintf("Download game list failed.\n");
+                    free(buffer);
+                    Sleep(500);
+                    goto main_UI_loop_start;
+                }
+
+                writeCache(path, buffer);
+            }
+
+            char buff_tmp[105] = "";
+
+            strncpy(buff_tmp, buffer, 100);
+            buff_tmp[100] = '\0';
+
+            log_printf("\n\nFirst 300 chars of JSON data: %s\n", buff_tmp);
+
+            log_printf("Parsing JSON search results into a list\n");
+
+            std::vector<GameEntry> newList = parse_JSON_search_results(buffer, gameSearchString);
+            list.insert(list.end(), newList.begin(), newList.end());
+
+            log_printf("JSON parsed succesfully, %d search results\n", list.size());
         }
-
-        char buff_tmp[105] = "";
-
-        strncpy(buff_tmp, buffer, 100);
-        buff_tmp[100] = '\0';
-
-        log_printf("\n\nFirst 300 chars of JSON data: %s\n", buff_tmp);
-
-        log_printf("Parsing JSON search results into a list\n");
-        std::vector<GameEntry> list = parse_JSON_search_results(buffer, gameSearchString);
-
-        log_printf("JSON parsed succesfully, %d search results\n", list.size());
 
         SearchResultSelection searchSelection = ShowSearchResultsUI(list);
         if (searchSelection.action == SEARCH_RESULT_CANCEL || searchSelection.index < 0)
@@ -733,27 +802,8 @@ std::vector<GameData> showUI()
         bool downloadImmediately =
             searchSelection.action == SEARCH_RESULT_DOWNLOAD_NOW;
 
-        log_printf("Parsing disk versions\n");
 
-        std::vector<MediaEntry> mediaList = parse_JSON_disk_versions(list[selected]);
-        if (mediaList.empty())
-        {
-            dprintf("Failed to parse media ID from selected game page.\n");
-            free(buffer);
-            Sleep(500);
-            continue;
-        }
-
-        int selectedMedia = ShowMediaResultsUI(mediaList, list[selected].name.c_str());
-        if (selectedMedia < 0)
-        {
-            dprintf("Failed to select a valid media\n");
-            free(buffer);
-            continue;
-        }
-
-        std::string finalDownloadURL = DOWNLOAD_DOMAIN "/?mediaId=";
-        finalDownloadURL.append(mediaList[selectedMedia].id.c_str());
+        std::string finalDownloadURL = list[selected].downloadURL.c_str();
 
         GameData gameData;
         ZeroMemory(&gameData, sizeof(gameData));
@@ -767,11 +817,9 @@ std::vector<GameData> showUI()
 
         ClearConsole();
         dprintf(downloadImmediately
-                    ? "Preparing to download %s Disc %s version %s\n"
-                    : "Queued %s Disc %s version %s\n",
-                gameData.selectedGameName,
-                mediaList[selectedMedia].disc.c_str(),
-                mediaList[selectedMedia].version.c_str());
+                    ? "Preparing to download %s\n"
+                    : "Queued %s\n",
+                gameData.selectedGameName);
 
         free(buffer);
 
