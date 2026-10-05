@@ -234,6 +234,7 @@ bool XboxTLS_CreateContext(XboxTLSContext* ctx, const char* hostname) {
     XboxTLSInternal* internal = (XboxTLSInternal*)malloc(sizeof(XboxTLSInternal));
     if (!internal) return false;
     memset(internal, 0, sizeof(XboxTLSInternal));
+    internal->sock = INVALID_SOCKET;
 
     ctx->internal = internal;
     return true;

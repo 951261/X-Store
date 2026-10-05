@@ -51,10 +51,12 @@ DESCRIPTION : Downloads a file. If the file is larger than 4GB, it splits it int
 #include <iostream>
 
 #include "XboxTLS.h"
+#include "downloadFile.h"
 #include "dns.h"
 #include "parsing.h"
 #include "OutputConsole.h"
 #include "githubCert.h"
+#include "settings.h"
 
 #include <xtl.h>
 #include "goDaddyRootCA.h"
@@ -794,6 +796,7 @@ int DumpResponse(XboxTLSContext *ctx,
                             }
                         } else if (state.Gamepad.wButtons & XINPUT_GAMEPAD_B) {
                             dprintf("Download Canceled\n");
+                            responseCode = -67;
                             goto failure;
                         }
                     }
@@ -948,12 +951,412 @@ int addTrustAnchors(XboxTLSContext *ctx)
     return EXIT_SUCCESS;
 }
 
-int downloadFileHTTPS(const std::string URL, const std::string fileName, char *dataBuffer, unsigned long long *outputBufferSize, bool downloadIntoFile, void printFunction(const char *_format, ...))
+static std::string PostHeaderName(std::string name)
+{
+    for (size_t i = 0; i < name.size(); ++i)
+        name[i] = LowerAscii(name[i]);
+    return name;
+}
+
+static bool ValidPostHeaderName(const std::string& name)
+{
+    return !name.empty() && name.find_first_not_of(
+        "!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") == std::string::npos;
+}
+
+static bool ValidPostHeaderValue(const std::string& value)
+{
+    for (size_t i = 0; i < value.size(); ++i)
+    {
+        unsigned char c = (unsigned char)value[i];
+        if ((c < 32 && c != '\t') || c == 127)
+            return false;
+    }
+    return true;
+}
+
+static bool ParsePostSize(const std::string& text, unsigned int base, size_t& value)
+{
+    value = 0;
+    const size_t limit = std::string().max_size();
+    if (text.empty())
+        return false;
+    for (size_t i = 0; i < text.size(); ++i)
+    {
+        int digit = HexValue(text[i]);
+        if (digit < 0 || (unsigned int)digit >= base || value > (limit - digit) / base)
+            return false;
+        value = value * base + digit;
+    }
+    return true;
+}
+
+struct HttpPostReader
+{
+    XboxTLSContext* ctx;
+    HttpResponseInfo& response;
+    std::string pending;
+
+    HttpPostReader(XboxTLSContext* context, HttpResponseInfo& result) : ctx(context), response(result) {}
+
+    bool ReadMore()
+    {
+        char buffer[4096];
+        int received = XboxTLS_Read(ctx, buffer, sizeof(buffer));
+        if (received <= 0)
+        {
+            response.error_message = "Failed to read a complete HTTPS response.";
+            return false;
+        }
+        pending.append(buffer, received);
+        return true;
+    }
+
+    bool ReadLine(std::string& line)
+    {
+        for (;;)
+        {
+            size_t end = pending.find("\r\n");
+            if ((end == std::string::npos && pending.size() > 16384) ||
+                (end != std::string::npos && end > 16384))
+            {
+                response.error_message = "HTTP response line is too long.";
+                return false;
+            }
+            if (end != std::string::npos)
+            {
+                line.assign(pending, 0, end);
+                pending.erase(0, end + 2);
+                return true;
+            }
+            if (!ReadMore())
+                return false;
+        }
+    }
+
+    bool ReadBody(size_t length)
+    {
+        if (length > response.body.max_size() - response.body.size())
+        {
+            response.error_message = "HTTP response body is too large.";
+            return false;
+        }
+        while (length > 0)
+        {
+            if (pending.empty() && !ReadMore())
+                return false;
+            size_t count = pending.size() < length ? pending.size() : length;
+            response.body.append(pending, 0, count);
+            pending.erase(0, count);
+            length -= count;
+        }
+        return true;
+    }
+};
+
+static HttpResponseInfo HTTP_GET_or_POST(
+    const std::string& url,
+    const bool POST_request = false, // set true for POST, false for GET
+    const std::map<std::string, std::string>& headers = std::map<std::string, std::string>(),
+    const std::string& body = std::string()
+)
+{
+    HttpResponseInfo response;
+    if (url.size() < 8 || !EqualsNoCase(url.c_str(), 8, "https://"))
+    {
+        response.error_message = "HTTP_POST requires an HTTPS URL.";
+        return response;
+    }
+    for (size_t i = 0; i < url.size(); ++i)
+    {
+        if ((unsigned char)url[i] <= 32 || url[i] == 127)
+        {
+            response.error_message = "Invalid character in HTTPS URL.";
+            return response;
+        }
+    }
+
+    size_t pathStart = url.find_first_of("/?#", 8);
+    std::string authority = url.substr(8, pathStart == std::string::npos ? std::string::npos : pathStart - 8);
+    std::string domain = authority;
+    size_t portStart = authority.find(':');
+    size_t port = 443;
+    if (portStart != std::string::npos)
+    {
+        domain = authority.substr(0, portStart);
+        if (!ParsePostSize(authority.substr(portStart + 1), 10, port) || port == 0 || port > 65535)
+        {
+            response.error_message = "Invalid HTTPS port.";
+            return response;
+        }
+    }
+    if (domain.empty() || domain.find_first_of("@[]\\") != std::string::npos)
+    {
+        response.error_message = "Invalid or unsupported HTTPS hostname.";
+        return response;
+    }
+    std::string path = pathStart == std::string::npos ? "/" : url.substr(pathStart);
+    size_t fragment = path.find('#');
+    if (fragment != std::string::npos)
+        path.erase(fragment);
+    if (path.empty() || path[0] != '/')
+        path.insert(0, "/");
+
+    char contentLength[32];
+    _snprintf(contentLength, sizeof(contentLength), "%lu", (unsigned long)body.size());
+    std::string request = (POST_request ? "POST " : "GET ") + path + " HTTP/1.1\r\nHost: " + authority +
+        "\r\nContent-Length: " + contentLength + "\r\nConnection: close\r\n";
+    bool hasContentType = false;
+    bool hasAcceptEncoding = false;
+    for (std::map<std::string, std::string>::const_iterator it = headers.begin(); it != headers.end(); ++it)
+    {
+        if (!ValidPostHeaderName(it->first) || !ValidPostHeaderValue(it->second))
+        {
+            response.error_message = "Invalid HTTP request header.";
+            return response;
+        }
+        std::string name = PostHeaderName(it->first);
+        if (name == "transfer-encoding")
+        {
+            response.error_message = "Request Transfer-Encoding is not supported.";
+            return response;
+        }
+        if (name == "host" || name == "content-length" || name == "connection")
+            continue;
+        hasContentType = hasContentType || name == "content-type";
+        hasAcceptEncoding = hasAcceptEncoding || name == "accept-encoding";
+        request += it->first + ": " + it->second + "\r\n";
+    }
+    if (!hasContentType && POST_request) // GET request does not need Content-Type
+        request += "Content-Type: application/x-www-form-urlencoded\r\n";
+    if (!hasAcceptEncoding)
+        request += "Accept-Encoding: identity, *;q=0\r\n";
+    request += "\r\n";
+    if (request.size() > 16384)
+    {
+        response.error_message = "HTTP request headers are too large.";
+        return response;
+    }
+
+    XboxTLSContext ctx = {0};
+    XNetStartupParams xnsp = {0};
+    xnsp.cfgSizeOfStruct = sizeof(xnsp);
+    xnsp.cfgFlags = XNET_STARTUP_BYPASS_SECURITY;
+    bool networkStarted = false;
+    bool winsockStarted = false;
+    do
+    {
+        if (XNetStartup(&xnsp) != 0)
+        {
+            response.error_message = "Couldn't initialize the network stack.";
+            break;
+        }
+        networkStarted = true;
+        WSADATA wsadata;
+        if (WSAStartup(MAKEWORD(2, 2), &wsadata) != 0)
+        {
+            response.error_message = "Couldn't initialize Winsock.";
+            break;
+        }
+        winsockStarted = true;
+        if (!XboxTLS_CreateContext(&ctx, domain.c_str()) || addTrustAnchors(&ctx) != EXIT_SUCCESS)
+        {
+            response.error_message = "Couldn't initialize TLS and its trust anchors.";
+            break;
+        }
+        char ip[64] = {0};
+        if (!ResolveDNS(domain.c_str(), ip, sizeof(ip)) && searchDnsCache(domain.c_str(), ip, sizeof(ip)) != 0)
+        {
+            response.error_message = "Failed to resolve the HTTPS hostname.";
+            break;
+        }
+        if (!XboxTLS_Connect(&ctx, ip, domain.c_str(), (int)port))
+        {
+            response.error_message = "Failed to connect to the HTTPS server.";
+            break;
+        }
+        if (XboxTLS_Write(&ctx, request.c_str(), (int)request.size()) != (int)request.size())
+        {
+            response.error_message = "Failed to send the HTTP request headers.";
+            break;
+        }
+        for (size_t sent = 0; sent < body.size();)
+        {
+            int count = (int)(body.size() - sent > 16384 ? 16384 : body.size() - sent);
+            if (XboxTLS_Write(&ctx, body.c_str() + sent, count) != count)
+            {
+                response.error_message = "Failed to send the HTTP request body.";
+                break;
+            }
+            sent += count;
+        }
+        if (!response.error_message.empty())
+            break;
+
+        HttpPostReader reader(&ctx, response);
+        std::string line;
+        size_t headerBytes = 0;
+        // Skip informational responses such as 100 Continue before the final response.
+        do
+        {
+            response.headers.clear();
+            if (!reader.ReadLine(line))
+                break;
+            headerBytes += line.size() + 2;
+            if (line.size() < 12 || (line.compare(0, 9, "HTTP/1.0 ") != 0 && line.compare(0, 9, "HTTP/1.1 ") != 0) ||
+                line[9] < '1' || line[9] > '5' || line[10] < '0' || line[10] > '9' ||
+                line[11] < '0' || line[11] > '9' || (line.size() > 12 && line[12] != ' '))
+            {
+                response.error_message = "Invalid HTTP response status line.";
+                break;
+            }
+            response.status_code = (line[9] - '0') * 100 + (line[10] - '0') * 10 + line[11] - '0';
+            while (reader.ReadLine(line))
+            {
+                headerBytes += line.size() + 2;
+                if (headerBytes > 16384)
+                {
+                    response.error_message = "HTTP response headers are too large.";
+                    break;
+                }
+                if (line.empty())
+                    break;
+                size_t colon = line.find(':');
+                if (colon == std::string::npos || !ValidPostHeaderName(line.substr(0, colon)) ||
+                    !ValidPostHeaderValue(line.substr(colon + 1)))
+                {
+                    response.error_message = "Invalid HTTP response header.";
+                    break;
+                }
+                std::string name = PostHeaderName(line.substr(0, colon));
+                size_t first = line.find_first_not_of(" \t", colon + 1);
+                std::string value = first == std::string::npos ? "" : line.substr(first, line.find_last_not_of(" \t") - first + 1);
+                std::map<std::string, std::string>::iterator existing = response.headers.find(name);
+                if (existing == response.headers.end())
+                    response.headers[name] = value;
+                else if (name == "content-length")
+                {
+                    if (existing->second != value)
+                    {
+                        response.error_message = "Conflicting HTTP Content-Length headers.";
+                        break;
+                    }
+                }
+                else
+                    existing->second += (name == "set-cookie" ? "\n" : ", ") + value;
+            }
+            if (response.status_code == 101)
+                response.error_message = "HTTP protocol upgrades are not supported.";
+        } while (response.error_message.empty() && response.status_code < 200);
+        if (!response.error_message.empty() || response.status_code == 204 || response.status_code == 304)
+            break;
+
+        std::map<std::string, std::string>::const_iterator transfer = response.headers.find("transfer-encoding");
+        std::map<std::string, std::string>::const_iterator length = response.headers.find("content-length");
+        if (transfer != response.headers.end())
+        {
+            if (PostHeaderName(transfer->second) != "chunked")
+            {
+                response.error_message = "Unsupported HTTP response Transfer-Encoding.";
+                break;
+            }
+            while (reader.ReadLine(line))
+            {
+                size_t chunkSize;
+                std::string sizeText = line.substr(0, line.find(';'));
+                size_t sizeEnd = sizeText.find_last_not_of(" \t");
+                sizeText.erase(sizeEnd == std::string::npos ? 0 : sizeEnd + 1);
+                if (!ParsePostSize(sizeText, 16, chunkSize))
+                {
+                    response.error_message = "Invalid HTTP chunk size.";
+                    break;
+                }
+                if (chunkSize == 0)
+                {
+                    // Consume trailers and their terminating empty line.
+                    while (reader.ReadLine(line))
+                    {
+                        headerBytes += line.size() + 2;
+                        if (headerBytes > 16384)
+                        {
+                            response.error_message = "HTTP response trailers are too large.";
+                            break;
+                        }
+                        if (line.empty())
+                            break;
+                    }
+                    break;
+                }
+                if (!reader.ReadBody(chunkSize))
+                    break;
+                if (!reader.ReadLine(line))
+                    break;
+                if (!line.empty())
+                {
+                    response.error_message = "Invalid HTTP chunk terminator.";
+                    break;
+                }
+            }
+        }
+        else if (length != response.headers.end())
+        {
+            size_t contentSize;
+            if (!ParsePostSize(length->second, 10, contentSize))
+                response.error_message = "Invalid HTTP Content-Length.";
+            else
+                reader.ReadBody(contentSize);
+        }
+        else
+        {
+            // XboxTLS_Read also reports connection closure with a negative return value.
+            response.body.swap(reader.pending);
+            char buffer[4096];
+            int received;
+            while ((received = XboxTLS_Read(&ctx, buffer, sizeof(buffer))) > 0)
+            {
+                if ((size_t)received > response.body.max_size() - response.body.size())
+                {
+                    response.error_message = "HTTP response body is too large.";
+                    break;
+                }
+                response.body.append(buffer, received);
+            }
+        }
+    } while (false);
+
+    XboxTLS_Free(&ctx);
+    if (winsockStarted)
+        WSACleanup();
+    if (networkStarted)
+        XNetCleanup();
+    return response;
+}
+
+// unlike downloadFile, this function is intended for smaller GET refquests
+HttpResponseInfo HTTP_GET(
+    const std::string& url,
+    const std::map<std::string, std::string>& headers) {
+    return HTTP_GET_or_POST(url, false, headers);
+}
+
+HttpResponseInfo HTTP_POST(
+    const std::string& url,
+    const std::map<std::string, std::string>& headers,
+    const std::string& body
+) {
+    return HTTP_GET_or_POST(url, true, headers, body);
+}
+
+int downloadFileHTTPS(const std::string URL, const std::string fileName, char *dataBuffer, unsigned long long *outputBufferSize, bool downloadIntoFile, void printFunction(const char *_format, ...),
+                        std::map<std::string, std::string> headers)
 {
     char *domain;
     char *path;
 
     int httpStatus = 0;
+
+    std::string request;
+    std::string extraHeaders;
 
     printFunction("Attempting to download: %s\n", URL.c_str());
 
@@ -1072,29 +1475,45 @@ int downloadFileHTTPS(const std::string URL, const std::string fileName, char *d
     }
 
     // Step 6: Send GET request
-    char request[1024 * 5];
-    int requestLen;
+
+    for (std::map<std::string, std::string>::const_iterator it = headers.begin(); it != headers.end() && !headers.empty(); ++it)
+    {
+        if (!ValidPostHeaderName(it->first) || !ValidPostHeaderValue(it->second))
+        {
+            dprintf("Invalid HTTP request header.\n");
+            return false;
+        }
+        std::string name = PostHeaderName(it->first);
+        if (name == "transfer-encoding")
+        {
+            dprintf("Request Transfer-Encoding is not supported.\n");
+            return false;
+        }
+        if (name == "host" || name == "content-length" || name == "connection" ||
+            name == "user-agent" || name == "accept" || name == "accept-encoding" ||
+            name == "connection")
+            continue;
+
+        extraHeaders += it->first + ": " + it->second + "\r\n";
+    }
 
     printFunction("Request: formatting\n");
-    requestLen = _snprintf(request, sizeof(request),
-                           "GET %s HTTP/1.1\r\n"
-                           "Host: %s\r\n"
+    request = "GET " + std::string(path) + " HTTP/1.1\r\n"
+                           "Host: " + std::string(domain) + "\r\n"
                            "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36\r\n"
                            "Accept: */*\r\n"
                            "Accept-Encoding: identity, *;q=0\r\n"
                            "Connection: close\r\n"
-                           "referer: https://vimm.net/\r\n\r\n",
-                           path, domain);
+                           + extraHeaders + "\r\n";
 
-    if (requestLen < 0 || requestLen >= (int)sizeof(request))
-    {
-        ERROR("HTTP request buffer too small");
-        goto downloadFailed;
-    }
+    #ifdef VERBOSE_DEBUG
+    log_printf("Request %s\n", request.c_str());
+    #endif
 
+    const int requestLen = request.length() + 1;
     printFunction("Request: formatted %d bytes\n", requestLen);
     printFunction("Request: sending\n");
-    if (XboxTLS_Write(&ctx, request, requestLen) < 0)
+    if (XboxTLS_Write(&ctx, request.c_str(), requestLen) < 0)
     {
         ERROR("Failed to send HTTPS request");
         goto downloadFailed;

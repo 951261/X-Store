@@ -32,6 +32,8 @@ DESCRIPTION : READ THE FILE NAME (Haha). This is the main file that coordinates 
 #include <vector>
 #include <algorithm>
 #include <string>
+#include "decompressZip.h"
+#include "ia.h"
 
 #define SETTINGS_FILE "game:\\settings.txt"
 
@@ -270,17 +272,31 @@ static std::string getPathNameIndex(std::string str, const int index)
 	}
 }
 
-int getGame(std::string URL, const std::string sevenZipFile, const std::string isoFolder, const std::string outputFolder, const int downloadType)
+int getGame(std::string URL, const std::string compressedFile, const std::string isoFolder, const std::string outputFolder, const int downloadType, const std::string fileFormat)
 {
 	// goto skipDownloadAndExtract;
 
-	int httpStatus = downloadFileHTTPS(URL, sevenZipFile, NULL, NULL, true, dprintf);
-	if (httpStatus < 200)
+	if (DeleteSplitFiles(compressedFile.c_str()) != EXIT_SUCCESS)
+	{
+		log_printf("Note: failed to delete all compressed file parts before beginning download\n");
+	}
+
+	auto headers = constructIAHeaders();
+
+	if(headers.empty()) {
+		dprintf("Failed to construct Internet Archive authentication headers\n");
+		return EXIT_FAILURE;
+	}
+
+	int httpStatus = downloadFileHTTPS(URL, compressedFile, NULL, NULL, true, dprintf, headers);
+	if (httpStatus == -67) // download canceled
 	{
 		return EXIT_FAILURE;
 	}
 	else if (httpStatus != 200)
 	{
+		// Clear cache, as stale cache can cause errors
+		clearCache();
 		return EXIT_FAILURE;
 	}
 
@@ -289,16 +305,26 @@ int getGame(std::string URL, const std::string sevenZipFile, const std::string i
 		dprintf("Warning, failed to create %s \n", isoFolder.c_str());
 	}
 
-	dprintf("Download complete, beginning extraction of %s \n", sevenZipFile.c_str());
+	dprintf("Download complete, beginning extraction of %s \n", compressedFile.c_str());
 
-	if (decompressSevenZipFile(sevenZipFile.c_str(), isoFolder.c_str(), (downloadType == XBLA)) == EXIT_FAILURE)
-	{
+	if(fileFormat == "7Z") {
+		if (decompressSevenZipFile(compressedFile.c_str(), isoFolder.c_str(), (downloadType == XBLA)) == EXIT_FAILURE)
+		{
+			return EXIT_FAILURE;
+		}
+	} else if(fileFormat == "ZIP") {
+		if (decompressZipFile(compressedFile.c_str(), isoFolder.c_str(), (downloadType == XBLA)) == EXIT_FAILURE)
+		{
+			return EXIT_FAILURE;
+		}
+	} else {
+		dprintf("Unrecognised archive format: %s\n", fileFormat.c_str());
 		return EXIT_FAILURE;
 	}
 
-	if (DeleteSplitFiles(sevenZipFile.c_str()) != EXIT_SUCCESS)
+	if (DeleteSplitFiles(compressedFile.c_str()) != EXIT_SUCCESS)
 	{
-		dprintf("Warning: failed to delete all 7z parts after 7z extraction\n");
+		dprintf("Warning: failed to delete all compressed file parts after archive extraction\n");
 	}
 
 	// skipDownloadAndExtract:
@@ -703,11 +729,11 @@ int parseGameData(
 
 	if (gamesData.downloadType == XBLA)
 	{
-		downloadStatus = getGame(std::string(gamesData.selectedGameURL), "game:\\tmp.7z.001", gamesData.outputFolder, settings.xblaPath, gamesData.downloadType);
+		downloadStatus = getGame(std::string(gamesData.selectedGameURL), "game:\\tmp.7z.001", gamesData.outputFolder, settings.xblaPath, gamesData.downloadType, std::string(gamesData.fileFormat));
 	}
 	else
 	{
-		downloadStatus = getGame(std::string(gamesData.selectedGameURL), "game:\\tmp.7z.001", "game:\\tmp_output", gamesData.outputFolder, gamesData.downloadType);
+		downloadStatus = getGame(std::string(gamesData.selectedGameURL), "game:\\tmp.7z.001", "game:\\tmp_output", gamesData.outputFolder, gamesData.downloadType, std::string(gamesData.fileFormat));
 	}
 
 	if (downloadStatus == EXIT_SUCCESS)

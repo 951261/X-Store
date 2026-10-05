@@ -24,6 +24,7 @@ MAIN FUNCTION : showUI
 #include <vector>
 #include "JSON_parser.h"
 #include "../xiso extract/file-stuff.h"
+#include "../ia.h"
 
 #define TEXTBUFFER_SIZE (1024 * 10)
 #define HTML_BUFFER_CAPACITY (1024 * 1024 * 10);
@@ -51,6 +52,9 @@ static const char *GetDownloadTypeName(enum DownloadType type)
     case DOWNLOAD_QUEUE:
         return "Download Queue";
 
+    case IA_LOGIN:
+        return "Login to the Internet Archive";
+
     default:
         return "Unknown";
     }
@@ -74,6 +78,9 @@ static enum DownloadType GetDownloadTypeFromIndex(int index)
 
     case 4:
         return DOWNLOAD_QUEUE;
+
+    case 5:
+        return IA_LOGIN;
 
     default:
         return XBLA;
@@ -113,7 +120,7 @@ static void WaitForControllerButtonsRelease()
         if (XInputGetState(0, &state) != ERROR_SUCCESS || state.Gamepad.wButtons == 0)
             return;
 
-        Sleep(50);
+        Sleep(100);
     }
 }
 
@@ -193,7 +200,7 @@ static void RenderDownloadTypeMenu(int selected, const std::vector<GameData> &ga
     ClearConsole();
     _snprintf(outputTextBuffer, TEXTBUFFER_SIZE - strlen(outputTextBuffer), "Download Queue (%u items)\n\n", (unsigned int)gamesInfo.size());
 
-    for (int i = 0; i < 5; ++i)
+    for (int i = 0; i < 6; ++i)
     {
         enum DownloadType type = GetDownloadTypeFromIndex(i);
         if (type == DOWNLOAD_QUEUE)
@@ -279,8 +286,8 @@ static enum DownloadType ShowDownloadTypeMenu(const std::vector<GameData> &games
         if (selected < 0)
             selected = 0;
 
-        if (selected >= 5)
-            selected = 4;
+        if (selected >= 6)
+            selected = 5;
 
         if (moved)
             RenderDownloadTypeMenu(selected, gamesInfo);
@@ -671,35 +678,90 @@ bool writeCache(std::string path, const char * buffer) {
     return true;
 }
 
+bool clearCache() {
+    const char CACHE_FOLDER[] = "game:\\cache";
+    return deleteDirectory(CACHE_FOLDER, sizeof(CACHE_FOLDER)) == EXIT_SUCCESS;
+}
+
+
+int getNumURLs(const int downloadType) {
+    switch (downloadType)
+    {
+    case ORIGINAL_XBOX:
+        return sizeof(XBOX_URL_PATHS) / sizeof(XBOX_URL_PATHS[0]);
+    case XBOX_360:
+        return sizeof(X360_URL_PATHS) / sizeof(X360_URL_PATHS[0]);
+    case XBLA:
+        return sizeof(XBLA_URL_PATHS) / sizeof(XBLA_URL_PATHS[0]);
+    
+    default:
+        return 0;
+    }
+}
+
+std::string getURLbyIndex(const int downloadType, const int index) {
+    switch (downloadType)
+    {
+    case ORIGINAL_XBOX:
+        return XBOX_URL_PATHS[index];
+    case XBOX_360:
+        return X360_URL_PATHS[index];
+    case XBLA:
+        return XBLA_URL_PATHS[index];
+    
+    default:
+        return std::string();
+    }
+}
+
 std::vector<GameData> showUI()
 {
     Sleep(1000);
 
+    // IA_login();
+
+    // return std::vector<GameData>(); // REMOVE ME, this is for testing
+
     std::vector<GameData> gamesInfo;
-
-    while (true)
-    {
-        XINPUT_STATE state;
-        ZeroMemory(&state, sizeof(state));
-
-        if (XInputGetState(0, &state) == ERROR_SUCCESS &&
-            (state.Gamepad.wButtons == 0))
-        {
-            break;
-        }
-        else
-        {
-            dprintf("Please release all controller buttons\n");
-        }
-
-        Sleep(800);
-    }
 
 main_UI_loop_start:
     Sleep(250);
 
     while (true)
     {
+        if(getAuthCookie().empty()) {
+            dprintf("To use X-Store, you must login to an Internet Archive account. Creating an account is completely free! \nPress A to continue\n");
+            
+            XINPUT_STATE state;
+            bool is_A_pressed = false;
+            while (!is_A_pressed)
+            {
+                ZeroMemory(&state, sizeof(state));
+                if (XInputGetState(0, &state) == ERROR_SUCCESS && state.Gamepad.wButtons & XINPUT_GAMEPAD_A)
+                    is_A_pressed = true;
+
+                Sleep(100);
+            }
+
+            if(IA_login()) {
+                dprintf("Login succeeded! Press A to continue\n");
+            } else {
+                dprintf("Login failed! Press A to continue\n");
+            }
+
+            is_A_pressed = false;
+            while (!is_A_pressed)
+            {
+                ZeroMemory(&state, sizeof(state));
+                if (XInputGetState(0, &state) == ERROR_SUCCESS && state.Gamepad.wButtons & XINPUT_GAMEPAD_A)
+                    is_A_pressed = true;
+
+                Sleep(100);
+            }
+
+            continue;
+        }
+
         WaitForControllerButtonsRelease();
         enum DownloadType downloadType = ShowDownloadTypeMenu(gamesInfo);
         if (!downloadType)
@@ -710,9 +772,21 @@ main_UI_loop_start:
 
         if (downloadType == AUTO_UPDATE)
         {
+            clearCache();
             if (runUpdate() != EXIT_FAILURE)
                 dprintf("Update Succeeded!\n");
             Sleep(500);
+            continue;
+        }
+
+        if (downloadType == IA_LOGIN) {
+            if(IA_login()) {
+                dprintf("Login succeeded!\n");
+            } else {
+                dprintf("Login failed!\n");
+            }
+
+            Sleep(1800);
             continue;
         }
 
@@ -737,29 +811,18 @@ main_UI_loop_start:
             continue;
         }
 
-        std::string searchURL;
-        switch (downloadType)
-        {
-        case ORIGINAL_XBOX:
-            searchURL = ""; // not supported yet
-            free(buffer);
-            continue;
-        case XBOX_360:
-            searchURL = ""; // XBOX360_GAMES_LIST;
-            free(buffer);
-            continue;
-        case XBLA:
-            searchURL = XBLA_DOWNLOAD_BASE_URL "/metadata";
-            break;
-        default:
+        const std::string searchURL = XBLA_DOWNLOAD_BASE_URL "/metadata";
+
+        if (downloadType != ORIGINAL_XBOX && downloadType != XBOX_360 && downloadType != XBLA) {
+            dprintf("ERROR: Unrecognised download type\n");
             free(buffer);
             continue;
         }
 
         std::vector<GameEntry> list;
 
-		for (int i = 0; i < sizeof(XBLA_URL_PATHS) / sizeof(XBLA_URL_PATHS[0]); i++) {
-			std::string path = XBLA_URL_PATHS[i];
+		for (int i = 0; i < getNumURLs(downloadType); i++) {
+			std::string path = getURLbyIndex(downloadType, i);
 
             if(!(isCached(path) && loadCache(path, buffer))) {
 
@@ -784,7 +847,7 @@ main_UI_loop_start:
 
             log_printf("Parsing JSON search results into a list\n");
 
-            std::vector<GameEntry> newList = parse_JSON_search_results(buffer, gameSearchString);
+            std::vector<GameEntry> newList = parse_JSON_search_results(buffer, gameSearchString, path);
             list.insert(list.end(), newList.begin(), newList.end());
 
             log_printf("JSON parsed succesfully, %d search results\n", list.size());
@@ -808,6 +871,7 @@ main_UI_loop_start:
         GameData gameData;
         ZeroMemory(&gameData, sizeof(gameData));
         gameData.downloadType = downloadType;
+        strncpy(gameData.fileFormat, list[selected].fileFormat.c_str(), sizeof(gameData.fileFormat) - 1);
         strncpy(gameData.selectedGameName, list[selected].name.c_str(), sizeof(gameData.selectedGameName) - 1);
         strncpy(gameData.selectedGameURL, finalDownloadURL.c_str(), sizeof(gameData.selectedGameURL) - 1);
         if (downloadImmediately)

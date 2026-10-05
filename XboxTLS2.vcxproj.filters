@@ -47,6 +47,9 @@
     <Filter Include="Debug">
       <UniqueIdentifier>{01f6c78f-7a4d-450c-98bb-214b8c745272}</UniqueIdentifier>
     </Filter>
+    <Filter Include="IA">
+      <UniqueIdentifier>{ca0b2589-5ac2-481f-954d-23d11ec63c22}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="SSL\codec\pemdec.t0">
@@ -147,6 +150,11 @@
     <ClInclude Include="githubCert.h" />
     <ClInclude Include="xblaParsing.h">
       <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SplitFile.h" />
+    <ClInclude Include="decompressZip.h" />
+    <ClInclude Include="ia.h">
+      <Filter>IA</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1052,6 +1060,15 @@
     </ClCompile>
     <ClCompile Include="xblaParsing.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SplitFile.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="decompressZip.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ia.cpp">
+      <Filter>IA</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

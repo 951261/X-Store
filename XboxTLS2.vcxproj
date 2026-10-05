@@ -281,12 +281,15 @@
   <ItemGroup>
     <ClInclude Include="Corona4G.h" />
     <ClInclude Include="Debug.h" />
+    <ClInclude Include="decompressZip.h" />
     <ClInclude Include="dns.h" />
     <ClInclude Include="downloadFile.h" />
     <ClInclude Include="githubCert.h" />
     <ClInclude Include="goDaddyRootCA.h" />
+    <ClInclude Include="ia.h" />
     <ClInclude Include="OutputConsole.h" />
     <ClInclude Include="parsing.h" />
+    <ClInclude Include="SplitFile.h" />
     <ClInclude Include="SSL\config.h" />
     <ClInclude Include="SSL\inc\bearssl.h" />
     <ClInclude Include="SSL\inc\bearssl_aead.h" />
@@ -308,11 +311,14 @@
   <ItemGroup>
     <ClCompile Include="Corona4G.c" />
     <ClCompile Include="Debug.cpp" />
+    <ClCompile Include="decompressZip.cpp" />
     <ClCompile Include="dns.cpp" />
     <ClCompile Include="downloadFile.cpp" />
+    <ClCompile Include="ia.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="OutputConsole.cpp" />
     <ClCompile Include="parsing.cpp" />
+    <ClCompile Include="SplitFile.cpp" />
     <ClCompile Include="SSL\aead\ccm.c" />
     <ClCompile Include="SSL\aead\eax.c" />
     <ClCompile Include="SSL\aead\gcm.c" />

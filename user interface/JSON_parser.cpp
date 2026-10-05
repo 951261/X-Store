@@ -18,7 +18,7 @@ bool findStringIC(const std::string & strHaystack, const std::string & strNeedle
   return (it != strHaystack.end() );
 }
 
-std::vector<GameEntry> parse_JSON_search_results(const char *JSON_text_buffer, const std::string searchString)
+std::vector<GameEntry> parse_JSON_search_results(const char *JSON_text_buffer, const std::string searchString, const std::string metadataPath)
 {
     std::vector<GameEntry> gamesList;
     std::string gameDownloadURLBase;
@@ -43,18 +43,30 @@ std::vector<GameEntry> parse_JSON_search_results(const char *JSON_text_buffer, c
                 gameDownloadURLBase = std::string("https://") + std::string(server_domain->valuestring) + std::string(dir_path->valuestring);
             } else {
                 log_printf("Server domain/path is not a string\n");
+                dprintf("Warning: JSON file does not contain a valid download server\n");
                 cJSON_Delete(json); // clean up
                 return gamesList;
             }
         } else {
             log_printf("workable is NULL\n");
+            dprintf("Warning: JSON file does not contain a valid download server\n");
             cJSON_Delete(json); // clean up
             return gamesList;
         }
     } else {
-        log_printf("Workable is not an array\n");
-        cJSON_Delete(json); // clean up
-        return gamesList;
+        log_printf("Workable is not an array, trying \"server\" \n");
+
+        cJSON* server = cJSON_GetObjectItemCaseSensitive(json, "server");
+        cJSON* dir = cJSON_GetObjectItemCaseSensitive(json, "dir");
+        if(cJSON_IsString(server) && server->valuestring != NULL && 
+           cJSON_IsString(dir) && dir->valuestring != NULL) {
+
+            gameDownloadURLBase = "https://" + std::string(server->valuestring) + std::string(dir->valuestring);
+        } else {
+            dprintf("Warning: JSON file does not contain a valid download server\n");
+            cJSON_Delete(json); // clean up
+            return gamesList;
+        }
     }
 
     cJSON *fileName = NULL;
@@ -68,8 +80,10 @@ std::vector<GameEntry> parse_JSON_search_results(const char *JSON_text_buffer, c
             GameEntry game;
             game.name = gameName->valuestring;
             game.downloadURL = gameDownloadURLBase + std::string("/") + UrlEncodeQuery(game.name); 
+            game.fileFormat.assign(fileFormat->valuestring);
+            game.metadataPath.assign(metadataPath); // where the game was found
 
-            if(findStringIC(game.name, searchString) != true || strcmp(fileFormat->valuestring, "ZIP") != 0) {
+            if(findStringIC(game.name, searchString) != true || (game.fileFormat != "ZIP" && game.fileFormat != "7Z") ) {
                 // if the search text is not found in the game name, then continue to the next entry
                 // Also, if the search result is in an unsupported format, continue
                 continue;

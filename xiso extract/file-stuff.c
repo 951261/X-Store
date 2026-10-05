@@ -847,8 +847,9 @@ int findFile(const char *folder, char *isoFile, int len, const char *suffix)
 			if (strlen(ent->d_name) > strlen(suffix) && strcmp(&(ent->d_name[nameLength - strlen(suffix)]), suffix) == 0)
 			{ // identical strings
 				strncpy(isoFile, ent->d_name, len);
+                const int returnStatus = (strlen(ent->d_name) < len) ? EXIT_SUCCESS : EXIT_FAILURE;
 				closedir(dir);
-				return (strlen(ent->d_name) < len) ? EXIT_SUCCESS : EXIT_FAILURE;
+				return returnStatus;
 			}
 		}
 		closedir(dir);
