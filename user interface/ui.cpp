@@ -730,7 +730,8 @@ main_UI_loop_start:
     while (true)
     {
         if(getAuthCookie().empty() && !S3KeysExists()) {
-            dprintf("To use X-Store, you must login to an Internet Archive account. Creating an account is completely free! \nPress A to continue\n");
+            dprintf("\nTo use X-Store, you must login to an Internet Archive account. Creating an account is completely free! \n"
+                    "\nAlternatively, you can put your Internet Archive S3 keys in ArchiveOrgKeys.txt, \nas described in the setup instructions on GitHub (https://github.com/951261/X-Store) \n\nPress A to continue\n");
             
             XINPUT_STATE state;
             bool is_A_pressed = false;
