@@ -5,7 +5,7 @@ This project was intentended to be a proof of concept xbox 360 game downloader. 
 
 Not affiliated with the [free60 project](https://free60.org)
 
-## NOTICE: Not Working (Again)
+## NOTICE: Working Again!!!
 
 ## What is it?
 
