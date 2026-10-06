@@ -15,6 +15,7 @@ The X Store is a homebrew application for the Xbox 360 that allows games to be d
 
 * A JTAG/RGH hard modded console OR a console running BadUpdate/ABadAvatar
 * The Xbox 360 must be connected to the internet
+* A free [Internet Archive account](https://archive.org/)
 
 ## **Not** Required
 
