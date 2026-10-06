@@ -8,6 +8,8 @@
 #include <fstream>
 #include <iterator>
 
+#include "ia.h"
+
 #include "downloadFile.h"
 #include "OutputConsole.h"
 #include "updater/cJSON.h"
@@ -513,12 +515,58 @@ std::map<std::string, std::string> constructIAHeaders() {
     std::map<std::string, std::string> headers;
     std::string usernameCookie = getUsernameCookie();
 
-    if(usernameCookie.empty()) {
-        return std::map<std::string, std::string>();
+    if (S3KeysExists()) {
+        auto s3keys = getS3KeysFromFile();
+        headers["Authorization"] = "LOW " + s3keys.first + ":" + s3keys.second;
     }
 
-    headers["referer"] = "https://archive.org/";
-    headers["cookie"] = "logged-in-sig=" + getAuthCookie() + "; logged-in-user=" + usernameCookie;
-
+    if(!usernameCookie.empty() && !getAuthCookie().empty()) {
+        headers["referer"] = "https://archive.org/";
+        headers["cookie"] = "logged-in-sig=" + getAuthCookie() + "; logged-in-user=" + usernameCookie;
+    } else if(!S3KeysExists()) {
+        // No authentication method found
+        return std::map<std::string, std::string>();
+    }
+    
     return headers;
+}
+
+std::pair<std::string, std::string> getS3KeysFromFile() {
+    std::pair<std::string, std::string> keys;
+
+    // Open the text file for reading
+    std::ifstream f(IA_S3_KEYS_FILE_PATH);
+
+    // Check if the file was opened successfully
+    if (!f.is_open()) {
+        log_printf("Note: failed to open " IA_S3_KEYS_FILE_PATH " file!\n");
+        return keys;
+    }
+
+    std::string s;
+
+    // Read each line from the file
+    if(!std::getline(f, s)) {
+        dprintf("Error: failed to read first line from " IA_S3_KEYS_FILE_PATH " file");
+        return keys;
+    }
+    keys.first = s;
+
+    // Read each line from the file
+    if(!std::getline(f, s)) {
+        dprintf("Error: failed to read second line from " IA_S3_KEYS_FILE_PATH " file");
+        keys = std::pair<std::string, std::string>();
+        return keys;
+    }
+    keys.second = s;
+
+    // Close the file
+    f.close();
+
+    return keys;
+}
+
+bool S3KeysExists() {
+    auto keys = getS3KeysFromFile();
+    return (!keys.first.empty()) && (!keys.second.empty());
 }

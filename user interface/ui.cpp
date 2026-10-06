@@ -729,7 +729,7 @@ main_UI_loop_start:
 
     while (true)
     {
-        if(getAuthCookie().empty()) {
+        if(getAuthCookie().empty() && !S3KeysExists()) {
             dprintf("To use X-Store, you must login to an Internet Archive account. Creating an account is completely free! \nPress A to continue\n");
             
             XINPUT_STATE state;
