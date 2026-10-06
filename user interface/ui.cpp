@@ -326,7 +326,7 @@ static void RenderSearchResults(const std::vector<GameEntry> list, int selected,
     char outputTextBuffer[TEXTBUFFER_SIZE] = " ";
 
     ClearConsole();
-    _snprintf(outputTextBuffer, TEXTBUFFER_SIZE - strlen(outputTextBuffer), "Vimm's Lair search results\n\n");
+    _snprintf(outputTextBuffer, TEXTBUFFER_SIZE - strlen(outputTextBuffer), "Search results\n\n");
 
     if (list.empty())
     {
@@ -740,7 +740,7 @@ main_UI_loop_start:
                 if (XInputGetState(0, &state) == ERROR_SUCCESS && state.Gamepad.wButtons & XINPUT_GAMEPAD_A)
                     is_A_pressed = true;
 
-                Sleep(100);
+                Sleep(10);
             }
 
             if(IA_login()) {
@@ -756,7 +756,7 @@ main_UI_loop_start:
                 if (XInputGetState(0, &state) == ERROR_SUCCESS && state.Gamepad.wButtons & XINPUT_GAMEPAD_A)
                     is_A_pressed = true;
 
-                Sleep(100);
+                Sleep(10);
             }
 
             continue;

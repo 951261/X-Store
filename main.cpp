@@ -293,6 +293,10 @@ int getGame(std::string URL, const std::string compressedFile, const std::string
 	{
 		return EXIT_FAILURE;
 	}
+	else if (httpStatus == 401 || httpStatus == 403) {
+		dprintf("\nTo download, you must login to your Internet Archive account. \nPlease select login on the main menu. If you do not have an account, \nyou can create one for free at https://archive.org/signup/\n");
+		return EXIT_FAILURE;
+	}
 	else if (httpStatus != 200)
 	{
 		// Clear cache, as stale cache can cause errors

@@ -584,7 +584,7 @@ int DumpResponse(XboxTLSContext *ctx,
                 switch (status)
                 {
                 case 429:
-                    printFunction("Error: A download is already in progress.\nVimms Lair only allows one download at a time. Go to https://dl3.vimm.net/cancel.php to fix this error. \n");
+                    printFunction("Error: Too many requests \n");
                     break;
                 case 404:
                     printFunction("Error: Page not found\n");
