@@ -64,7 +64,7 @@ You must first [create a free Internet Archive account](https://archive.org/sign
 
 ## FAQ
 
-* Will this work with BadUpdate/ABadAvatar? Yes, it should work on any homebrew capable Xbox 360 console
+* Will this work with BadUpdate/ABadAvatar/Peer Pressure? Yes, it should work on any homebrew capable Xbox 360 console
 * Why is it taking so long? The Xbox 360 is (by modern standards) an old console. Attempting to download large games directly on the console over encrypted HTTPS is not a simple feat
 * How can I make my downloads faster? Wired ethernet will usually be faster than WiFi. The biggest contributor to speed is usually based on where you live, and how fast your internet connection is. Changing your DNS settings is unlikely to make a difference. 
 * Does this require a stealth server? No, this program only requires an internet connection, no Xbox Live or Stealth server required
@@ -83,7 +83,7 @@ Many thanks to all of the open source projects that made this possible, includin
 * [LZMA SDK](https://www.7-zip.org/sdk.html), to decompress LZMA and LZMA 2 compressed 7z files
 * [miniz](https://github.com/richgel999/miniz) to decompress the update data
 * [cJSON](https://github.com/DaveGamble/cJSON) to parse the JSON data required to update the program
-* [Vimm's Lair](https://vimm.net/), without which this entire project would not have been possible
+* [Internet Archive](https://archive.org/), without which this entire project would not have been possible
 
 ## Disclaimers
 
@@ -91,7 +91,7 @@ Many thanks to all of the open source projects that made this possible, includin
 * This program is in a very early alpha phase, and should be treated as a proof-of-concept. Bugs should be expected
 * Depending on your local law, it may or may not be legal for you to download games with this tool. I take ABSOLUTELY NO RESPONSIBILITY for your actions
 * AI. Yes, I used it. While this project is **not** vibecoded, there are many portions of this project where I made use of AI to **assist** in writing parts of the code
-* This project has no intention of being affiliated with the free60 project. If you do not approve of this project's name, please let me know
+* This project has no intention of being affiliated with the free60 project. 
 
 ## TODO
 
@@ -100,7 +100,6 @@ Many thanks to all of the open source projects that made this possible, includin
 * Eliminate memory leaks
 * Impliment a better UI using xUI
 * Add support to download from ROMSFUN using flaresolver proxy - unlikely
-* Add support to download from the Internet Archive
 * Potentially make use of the [triangle](https://github.com/JakobRangel/Triangle) frontend when it is made open source
 * Test to see if DOS 8.3 file name limitations affect FATX
 
