@@ -102,5 +102,6 @@ Many thanks to all of the open source projects that made this possible, includin
 * Add support to download from ROMSFUN using flaresolver proxy - unlikely
 * Potentially make use of the [triangle](https://github.com/JakobRangel/Triangle) frontend when it is made open source
 * Test to see if DOS 8.3 file name limitations affect FATX
+* Update user-agent to better identify the program
 
 Pull Requests are welcome
