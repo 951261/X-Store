@@ -817,7 +817,11 @@ int DumpResponse(XboxTLSContext *ctx,
                 {
                     std::cout << "Divide by 0 error found\n";
                     // tempTotalWritten++;
-                    printFunction("Downloaded %llu KB out of %llu KB, time: %llu\n", tempTotalWritten / (unsigned long long)1024, totalContentLength / (unsigned long long)1024, (endTime - beginTime) / (unsigned long long)1000);
+                    char humanReadableDownloadedBytes[64] = "";
+                    char humanReadableTotalBytes[64] = "";
+                    FormatBytes(tempTotalWritten, humanReadableDownloadedBytes, sizeof(humanReadableDownloadedBytes));
+                    FormatBytes(totalContentLength, humanReadableTotalBytes, sizeof(humanReadableTotalBytes));
+                    printFunction("Downloaded %s out of %s, time: %llu\n", humanReadableDownloadedBytes, humanReadableTotalBytes, (endTime - beginTime) / (unsigned long long)1000);
 
                     endTime = (getClockLong() * (unsigned long long)1000) / (CLOCKS_PER_SEC);
                     startTime = endTime;

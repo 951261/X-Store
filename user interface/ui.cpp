@@ -386,7 +386,7 @@ static void RenderSearchResults(const std::vector<GameEntry> &list, int selected
                   list[index].name.c_str());
     }
 
-    _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "\nX: Mark/Unmark   Y: Queue%s   A: Download Now   B: Back   D-Pad/Left Stick: Move\n",
+    _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "\nX: Mark/Unmark   Y: Queue%s   A: Download Now   B: Back\nD-Pad/Left Stick: Move   LB/RB: Page\n",
               markedCount > 0 ? " Marked" : "");
 
     dprintf("%s", outputTextBuffer); // draw in one go to prevent flickering
@@ -471,6 +471,18 @@ static SearchResultSelection ShowSearchResultsUI(const std::vector<GameEntry> &l
         if (moved)
             selected += direction;
 
+        bool paged = false;
+        if (pressed & XINPUT_GAMEPAD_LEFT_SHOULDER)
+        {
+            selected -= visibleRows;
+            paged = true;
+        }
+        if (pressed & XINPUT_GAMEPAD_RIGHT_SHOULDER)
+        {
+            selected += visibleRows;
+            paged = true;
+        }
+
         if (selected < 0)
             selected = 0;
 
@@ -483,7 +495,7 @@ static SearchResultSelection ShowSearchResultsUI(const std::vector<GameEntry> &l
         if (selected >= scroll + visibleRows)
             scroll = selected - visibleRows + 1;
 
-        if (moved)
+        if (moved || paged)
             RenderSearchResults(list, selected, scroll, checked, markedCount);
 
         previousButtons = buttons;

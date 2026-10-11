@@ -84,6 +84,7 @@ Many thanks to all of the open source projects that made this possible, includin
 * [miniz](https://github.com/richgel999/miniz) to decompress the update data
 * [cJSON](https://github.com/DaveGamble/cJSON) to parse the JSON data required to update the program
 * [Internet Archive](https://archive.org/), without which this entire project would not have been possible
+* Multi-select on the search screen (`X` to mark/unmark, `Y` to queue all marked) implemented by [bvlxtelli](https://github.com/bvlxtelli)
 
 ## Disclaimers
 
@@ -92,11 +93,6 @@ Many thanks to all of the open source projects that made this possible, includin
 * Depending on your local law, it may or may not be legal for you to download games with this tool. I take ABSOLUTELY NO RESPONSIBILITY for your actions
 * AI. Yes, I used it. While this project is **not** vibecoded, there are many portions of this project where I made use of AI to **assist** in writing parts of the code
 * This project has no intention of being affiliated with the free60 project. 
-
-## Credits
-
-* Multi-select on the search screen (`X` to mark/unmark, `Y` to queue all marked) implemented by [bvlxtelli](https://github.com/bvlxtelli) — see [v0.2.14](https://github.com/bvlxtelli/X-Store/releases/tag/v0.2.14).
-* Original project by [951261](https://github.com/951261/X-Store).
 
 ## TODO
 
