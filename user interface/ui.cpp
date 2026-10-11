@@ -306,7 +306,7 @@ enum SearchResultAction
 
 struct SearchResultSelection
 {
-    int index;
+    std::vector<int> indices;
     SearchResultAction action;
 };
 
@@ -315,18 +315,54 @@ static SearchResultSelection MakeSearchResultSelection(
     SearchResultAction action)
 {
     SearchResultSelection selection;
-    selection.index = index;
     selection.action = action;
+    if (index >= 0)
+        selection.indices.push_back(index);
     return selection;
 }
 
-static void RenderSearchResults(const std::vector<GameEntry> list, int selected, int scroll)
+static SearchResultSelection MakeSearchResultMultiSelection(
+    const std::vector<int> &indices,
+    SearchResultAction action)
+{
+    SearchResultSelection selection;
+    selection.action = action;
+    selection.indices = indices;
+    return selection;
+}
+
+static int CountMarkedResults(const std::vector<char> &checked)
+{
+    int count = 0;
+    for (size_t i = 0; i < checked.size(); ++i)
+        if (checked[i])
+            ++count;
+    return count;
+}
+
+static std::vector<int> CollectMarkedResults(
+    const std::vector<char> &checked,
+    int fallbackIndex)
+{
+    std::vector<int> indices;
+    for (size_t i = 0; i < checked.size(); ++i)
+        if (checked[i])
+            indices.push_back((int)i);
+    if (indices.empty() && fallbackIndex >= 0)
+        indices.push_back(fallbackIndex);
+    return indices;
+}
+
+static void RenderSearchResults(const std::vector<GameEntry> &list, int selected, int scroll, const std::vector<char> &checked, int markedCount)
 {
     const int visibleRows = 20;
     char outputTextBuffer[TEXTBUFFER_SIZE] = " ";
 
     ClearConsole();
-    _snprintf(outputTextBuffer, TEXTBUFFER_SIZE - strlen(outputTextBuffer), "Search results\n\n");
+    if (markedCount > 0)
+        _snprintf(outputTextBuffer, TEXTBUFFER_SIZE - strlen(outputTextBuffer), "Search results (%d marked)\n\n", markedCount);
+    else
+        _snprintf(outputTextBuffer, TEXTBUFFER_SIZE - strlen(outputTextBuffer), "Search results\n\n");
 
     if (list.empty())
     {
@@ -342,22 +378,28 @@ static void RenderSearchResults(const std::vector<GameEntry> list, int selected,
         if (index >= (int)list.size())
             break;
 
-        _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "%c %2d. %s\n",
+        char marked = (index >= 0 && index < (int)checked.size() && checked[index]) ? 'x' : ' ';
+        _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "%c %2d. [%c] %.200s\n",
                   index == selected ? '>' : ' ',
                   index + 1,
+                  marked,
                   list[index].name.c_str());
     }
 
-    _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "\nA: Download Now   Y: Add to Queue   B: Back   D-Pad/Left Stick: Move\n");
+    _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "\nX: Mark/Unmark   Y: Queue%s   A: Download Now   B: Back   D-Pad/Left Stick: Move\n",
+              markedCount > 0 ? " Marked" : "");
 
     dprintf("%s", outputTextBuffer); // draw in one go to prevent flickering
 }
 
-static SearchResultSelection ShowSearchResultsUI(const std::vector<GameEntry> list)
+static SearchResultSelection ShowSearchResultsUI(const std::vector<GameEntry> &list)
 {
+    std::vector<char> checked(list.size(), 0);
+    int markedCount = 0;
+
     if (list.empty())
     {
-        RenderSearchResults(list, 0, 0);
+        RenderSearchResults(list, 0, 0, checked, markedCount);
 
         while (true)
         {
@@ -381,7 +423,7 @@ static SearchResultSelection ShowSearchResultsUI(const std::vector<GameEntry> li
     int previousDirection = 0;
     DWORD nextRepeatTick = 0;
 
-    RenderSearchResults(list, selected, scroll);
+    RenderSearchResults(list, selected, scroll, checked, markedCount);
     InitializeMenuInput(&previousButtons, &previousDirection, &nextRepeatTick);
 
     while (true)
@@ -399,11 +441,28 @@ static SearchResultSelection ShowSearchResultsUI(const std::vector<GameEntry> li
         WORD pressed = buttons & ~previousButtons;
         int direction = GetVerticalNavigationDirection(state);
 
+        if (pressed & XINPUT_GAMEPAD_X)
+        {
+            if (selected >= 0 && selected < (int)checked.size())
+            {
+                checked[selected] = checked[selected] ? 0 : 1;
+                markedCount = CountMarkedResults(checked);
+            }
+            RenderSearchResults(list, selected, scroll, checked, markedCount);
+            previousButtons = buttons;
+            Sleep(50);
+            continue;
+        }
+
         if (pressed & XINPUT_GAMEPAD_A)
-            return MakeSearchResultSelection(selected, SEARCH_RESULT_DOWNLOAD_NOW);
+            return MakeSearchResultMultiSelection(
+                CollectMarkedResults(checked, selected),
+                SEARCH_RESULT_DOWNLOAD_NOW);
 
         if (pressed & XINPUT_GAMEPAD_Y)
-            return MakeSearchResultSelection(selected, SEARCH_RESULT_ADD_TO_QUEUE);
+            return MakeSearchResultMultiSelection(
+                CollectMarkedResults(checked, selected),
+                SEARCH_RESULT_ADD_TO_QUEUE);
 
         if (pressed & XINPUT_GAMEPAD_B)
             return MakeSearchResultSelection(-1, SEARCH_RESULT_CANCEL);
@@ -425,7 +484,7 @@ static SearchResultSelection ShowSearchResultsUI(const std::vector<GameEntry> li
             scroll = selected - visibleRows + 1;
 
         if (moved)
-            RenderSearchResults(list, selected, scroll);
+            RenderSearchResults(list, selected, scroll, checked, markedCount);
 
         previousButtons = buttons;
 
@@ -855,36 +914,52 @@ main_UI_loop_start:
         }
 
         SearchResultSelection searchSelection = ShowSearchResultsUI(list);
-        if (searchSelection.action == SEARCH_RESULT_CANCEL || searchSelection.index < 0)
+        if (searchSelection.action == SEARCH_RESULT_CANCEL || searchSelection.indices.empty())
         {
             log_printf("Failed to get search result selection from user\n");
             free(buffer);
             continue;
         }
 
-        int selected = searchSelection.index;
         bool downloadImmediately =
             searchSelection.action == SEARCH_RESULT_DOWNLOAD_NOW;
 
-
-        std::string finalDownloadURL = list[selected].downloadURL.c_str();
-
-        GameData gameData;
-        ZeroMemory(&gameData, sizeof(gameData));
-        gameData.downloadType = downloadType;
-        strncpy(gameData.fileFormat, list[selected].fileFormat.c_str(), sizeof(gameData.fileFormat) - 1);
-        strncpy(gameData.selectedGameName, list[selected].name.c_str(), sizeof(gameData.selectedGameName) - 1);
-        strncpy(gameData.selectedGameURL, finalDownloadURL.c_str(), sizeof(gameData.selectedGameURL) - 1);
         if (downloadImmediately)
             gamesInfo.clear();
 
-        gamesInfo.push_back(gameData);
+        for (size_t s = 0; s < searchSelection.indices.size(); ++s)
+        {
+            int selected = searchSelection.indices[s];
+            if (selected < 0 || selected >= (int)list.size())
+                continue;
+
+            std::string finalDownloadURL = list[selected].downloadURL.c_str();
+
+            GameData gameData;
+            ZeroMemory(&gameData, sizeof(gameData));
+            gameData.downloadType = downloadType;
+            strncpy(gameData.fileFormat, list[selected].fileFormat.c_str(), sizeof(gameData.fileFormat) - 1);
+            strncpy(gameData.selectedGameName, list[selected].name.c_str(), sizeof(gameData.selectedGameName) - 1);
+            strncpy(gameData.selectedGameURL, finalDownloadURL.c_str(), sizeof(gameData.selectedGameURL) - 1);
+
+            gamesInfo.push_back(gameData);
+        }
 
         ClearConsole();
-        dprintf(downloadImmediately
-                    ? "Preparing to download %s\n"
-                    : "Queued %s\n",
-                gameData.selectedGameName);
+        if (searchSelection.indices.size() == 1 && searchSelection.indices[0] >= 0 && searchSelection.indices[0] < (int)list.size())
+        {
+            dprintf(downloadImmediately
+                        ? "Preparing to download %s\n"
+                        : "Queued %s\n",
+                    list[searchSelection.indices[0]].name.c_str());
+        }
+        else
+        {
+            dprintf(downloadImmediately
+                        ? "Preparing to download %u games\n"
+                        : "Queued %u games\n",
+                    (unsigned int)searchSelection.indices.size());
+        }
 
         free(buffer);
 
