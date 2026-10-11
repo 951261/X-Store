@@ -128,7 +128,7 @@ The type is recognized for values such as `Addon`, `DLC`, `Title Update`, and `X
 - D-pad up/down changes `selected`.
 - `LB`/`RB` jump one page (20 rows) up/down.
 - `scroll` follows when `selected` moves outside the visible window.
-- `X` toggles the mark on the current item (`[x]` = marked, `[ ]` = unmarked). The header shows the marked count (`Search results (N marked)`).
+- `X` toggles the mark on the current item (`[x]` = marked, `[ ]` = unmarked). Marked rows are drawn in yellow (per-line color tags, see `LINE_COLOR_TAG` in `Common/AtgConsole.h`). The header shows the marked count (`Search results (N marked)`).
 - `Y` queues every marked item (`Y: Queue Marked`). If nothing is marked, it queues just the current item (previous single-select behavior).
 - `A` downloads immediately: every marked item, or just the current item when nothing is marked.
 - `B` cancels and returns no indices.

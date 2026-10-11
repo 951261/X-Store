@@ -20,6 +20,20 @@
 namespace ATG
 {
 
+// Inline per-line color tag: when a line starts with LINE_COLOR_TAG,
+// the next character selects that line's color (see ConsoleLineColor).
+// Only recognized at column 0, so message text can never trigger it
+// by accident. The tag bytes are consumed, never displayed.
+static const CHAR LINE_COLOR_TAG = '\x1F';
+
+enum ConsoleLineColor
+{
+    LINE_COLOR_DEFAULT = 0,
+    LINE_COLOR_YELLOW  = 1,
+    LINE_COLOR_GREEN   = 2,
+    LINE_COLOR_RED     = 3
+};
+
 //--------------------------------------------------------------------------------------
 // Name: class Console
 // Desc: Class to implement the console.
@@ -94,6 +108,10 @@ private:
     // Colors
     D3DCOLOR m_colBackColor;
     D3DCOLOR m_colTextColor;
+
+    // Per-line text colors (parallel to the m_Lines ring buffer)
+    D3DCOLOR* m_LineColors;
+    BOOL m_bExpectColorCode;   // TRUE when the next char is a color index
 
     // Text Buffers
     UINT m_cScreenHeight;        // height in lines of screen area

@@ -21,6 +21,7 @@ MAIN FUNCTION : showUI
 #include <updater.h>
 
 #include "ui.h"
+#include "AtgConsole.h"
 #include <vector>
 #include "JSON_parser.h"
 #include "../xiso extract/file-stuff.h"
@@ -360,7 +361,8 @@ static void RenderSearchResults(const std::vector<GameEntry> &list, int selected
 
     ClearConsole();
     if (markedCount > 0)
-        _snprintf(outputTextBuffer, TEXTBUFFER_SIZE - strlen(outputTextBuffer), "Search results (%d marked)\n\n", markedCount);
+        _snprintf(outputTextBuffer, TEXTBUFFER_SIZE - strlen(outputTextBuffer), "%c%cSearch results (%d marked)\n\n",
+                  ATG::LINE_COLOR_TAG, ATG::LINE_COLOR_YELLOW, markedCount);
     else
         _snprintf(outputTextBuffer, TEXTBUFFER_SIZE - strlen(outputTextBuffer), "Search results\n\n");
 
@@ -378,8 +380,11 @@ static void RenderSearchResults(const std::vector<GameEntry> &list, int selected
         if (index >= (int)list.size())
             break;
 
-        char marked = (index >= 0 && index < (int)checked.size() && checked[index]) ? 'x' : ' ';
-        _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "%c %2d. [%c] %.200s\n",
+        bool isMarked = (index >= 0 && index < (int)checked.size() && checked[index]);
+        char marked = isMarked ? 'x' : ' ';
+        int lineColor = isMarked ? ATG::LINE_COLOR_YELLOW : ATG::LINE_COLOR_DEFAULT;
+        _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "%c%c%c %2d. [%c] %.200s\n",
+                  ATG::LINE_COLOR_TAG, lineColor,
                   index == selected ? '>' : ' ',
                   index + 1,
                   marked,
