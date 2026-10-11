@@ -123,14 +123,20 @@ The type is recognized for values such as `Addon`, `DLC`, `Title Update`, and `X
 
 ## Search Results UI
 
-`ShowSearchResultsUI()` renders up to 20 visible rows. It keeps separate `selected` and `scroll` values:
+`ShowSearchResultsUI()` renders up to 20 visible rows. It keeps separate `selected` and `scroll` values, plus a `checked` mark array with one flag per result:
 
 - D-pad up/down changes `selected`.
 - `scroll` follows when `selected` moves outside the visible window.
-- `A` returns the selected index.
-- `B` returns `-1`.
+- `X` toggles the mark on the current item (`[x]` = marked, `[ ]` = unmarked). The header shows the marked count (`Search results (N marked)`).
+- `Y` queues every marked item (`Y: Queue Marked`). If nothing is marked, it queues just the current item (previous single-select behavior).
+- `A` downloads immediately: every marked item, or just the current item when nothing is marked.
+- `B` cancels and returns no indices.
+
+The function returns a `SearchResultSelection` holding a `vector<int> indices` plus the action. `showUI()` converts each index into a `GameData` entry appended to the download queue. `main.cpp` already downloads the whole queue sequentially (with duplicate output-folder handling), so no other code changes were needed.
 
 If there are no results, the UI displays `No games found` and waits for `B`.
+
+Multi-select exists only on this screen; the media and download-type menus still pick a single item.
 
 ## Selected Game Page
 
