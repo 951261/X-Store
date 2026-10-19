@@ -54,7 +54,7 @@ static const char *GetDownloadTypeName(enum DownloadType type)
         return "Download Queue";
 
     case IA_LOGIN:
-        return "Login to the Internet Archive";
+        return "Re-login to the Internet Archive";
 
     default:
         return "Unknown";
