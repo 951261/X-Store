@@ -436,8 +436,8 @@ bool XboxTLS_Connect(XboxTLSContext* ctx, const char* ip, const char* hostname, 
     {
         sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
         if (sock == INVALID_SOCKET) {
-            debug_tls("Socket creation failed.");
             int wsaErr = WSAGetLastError();
+            debug_tls("Socket creation failed.");
             char debugBuf[64];
             sprintf(debugBuf, "WSA Error: %d", wsaErr);
             debug_tls(debugBuf);
