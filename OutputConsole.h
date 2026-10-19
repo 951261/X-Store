@@ -50,5 +50,6 @@ void __cdecl dprintf(const char *strFormat, ...);
 void MakeConsole(const char *font, unsigned long BackgroundColor, unsigned long TextColor);
 
 void ClearConsole();
+void ClearConsoleOnNextPrint();
 
 // #include "Language.h"

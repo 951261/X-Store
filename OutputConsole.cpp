@@ -12,6 +12,8 @@ DESCRIPTION : Writes text to the screen. Also writes to debug file
 
 #define TEXTBUFFER_SIZE (1024 * 10) // 2KB buffer
 
+static bool shouldClearScreen = false;
+
 ATG::Console g_console;// console for output
 #ifdef USE_UNICODE
 WCHAR buf[TEXTBUFFER_SIZE]; // Text buffer
@@ -30,7 +32,10 @@ void  __cdecl dprintf(const char* strFormat, ...)
 	vsnprintf_s(buf, TEXTBUFFER_SIZE, strFormat, pArglist);
 #endif
 	va_end(pArglist);
+	if (shouldClearScreen)
+		g_console.ClearNoRender();
 	g_console.Display(buf);
+	shouldClearScreen = false;
  	// g_console.Format("%s", buf);
 #ifdef USE_UNICODE
 	if (!fexists("game:\\Simple 360 NAND Flasher.log"))
@@ -74,6 +79,11 @@ void MakeConsole(const char* font, unsigned long BackgroundColor, unsigned long 
 void ClearConsole()
 {
 	g_console.Clear();
+}
+
+void ClearConsoleOnNextPrint()
+{
+	shouldClearScreen = true;
 }
 
 void __cdecl log_printf(const char* strFormat, ...) {

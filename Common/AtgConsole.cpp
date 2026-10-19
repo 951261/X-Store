@@ -189,6 +189,19 @@ VOID Console::Clear()
     Render();
 }
 
+VOID Console::ClearNoRender()
+{
+    m_nCurLine = 0;
+    m_cCurLineLength = 0;
+    ZeroMemory( m_Buffer, m_cScreenHeightVirtual * ( m_cScreenWidth + 1 ) * sizeof( WCHAR ) );
+    if( m_LineColors )
+    {
+        for( UINT i = 0; i < m_cScreenHeightVirtual; i++ )
+            m_LineColors[ i ] = m_colTextColor;
+    }
+    m_bExpectColorCode = FALSE;
+}
+
 
 //--------------------------------------------------------------------------------------
 // Name: IncrementLine()

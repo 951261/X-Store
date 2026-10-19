@@ -198,7 +198,7 @@ static void RenderDownloadTypeMenu(int selected, const std::vector<GameData> &ga
 {
     char outputTextBuffer[TEXTBUFFER_SIZE] = " ";
 
-    ClearConsole();
+    ClearConsoleOnNextPrint();
     _snprintf(outputTextBuffer, TEXTBUFFER_SIZE - strlen(outputTextBuffer), "Download Queue (%u items)\n\n", (unsigned int)gamesInfo.size());
 
     for (int i = 0; i < 6; ++i)
@@ -359,7 +359,7 @@ static void RenderSearchResults(const std::vector<GameEntry> &list, int selected
     const int visibleRows = 20;
     char outputTextBuffer[TEXTBUFFER_SIZE] = " ";
 
-    ClearConsole();
+    ClearConsoleOnNextPrint();
     if (markedCount > 0)
         _snprintf(outputTextBuffer, TEXTBUFFER_SIZE - strlen(outputTextBuffer), "%c%cSearch results (%d marked)\n\n",
                   ATG::LINE_COLOR_TAG, ATG::LINE_COLOR_YELLOW, markedCount);
@@ -480,11 +480,13 @@ static SearchResultSelection ShowSearchResultsUI(const std::vector<GameEntry> &l
         if (pressed & XINPUT_GAMEPAD_LEFT_SHOULDER)
         {
             selected -= visibleRows;
+            scroll -= visibleRows;
             paged = true;
         }
         if (pressed & XINPUT_GAMEPAD_RIGHT_SHOULDER)
         {
             selected += visibleRows;
+            scroll += visibleRows;
             paged = true;
         }
 
@@ -493,6 +495,12 @@ static SearchResultSelection ShowSearchResultsUI(const std::vector<GameEntry> &l
 
         if (selected >= (int)list.size())
             selected = (int)list.size() - 1;
+
+        if (scroll < 0)
+            scroll = 0;
+
+        if (scroll > (int)list.size() - visibleRows && (int)list.size() - visibleRows > 0)
+            scroll = (int)list.size() - visibleRows;
 
         if (selected < scroll)
             scroll = selected;
@@ -513,7 +521,7 @@ static void RenderMediaResults(const std::vector<MediaEntry> list, const char *g
 {
     char outputTextBuffer[TEXTBUFFER_SIZE] = " ";
 
-    ClearConsole();
+    ClearConsoleOnNextPrint();
     _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "Choose download media\n\n");
 
     if (list.empty())

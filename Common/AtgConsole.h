@@ -55,6 +55,9 @@ public:
     // Clear the screen
     VOID            Clear();
 
+    // Clear the screen without drawing a blank frame
+    VOID            ClearNoRender();
+
     // Console output
 	virtual VOID    Display( LPCSTR strDisplay );
 	virtual VOID    Display( LPCWSTR wstrDisplay );
