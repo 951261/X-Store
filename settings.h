@@ -3,7 +3,7 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
-#define CURRENT_VERSION "0.2.13"
+#define CURRENT_VERSION "0.2.14"
 
 // Verbose debugging
 // #define VERBOSE_DEBUG

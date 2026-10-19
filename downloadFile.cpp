@@ -1504,7 +1504,7 @@ int downloadFileHTTPS(const std::string URL, const std::string fileName, char *d
     printFunction("Request: formatting\n");
     request = "GET " + std::string(path) + " HTTP/1.1\r\n"
                            "Host: " + std::string(domain) + "\r\n"
-                           "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36\r\n"
+                           "User-Agent: X Store/" CURRENT_VERSION " (Xbox 360)\r\n"
                            "Accept: */*\r\n"
                            "Accept-Encoding: identity, *;q=0\r\n"
                            "Connection: close\r\n"

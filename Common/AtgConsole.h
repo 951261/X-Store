@@ -28,10 +28,10 @@ static const CHAR LINE_COLOR_TAG = '\x1F';
 
 enum ConsoleLineColor
 {
-    LINE_COLOR_DEFAULT = 0,
-    LINE_COLOR_YELLOW  = 1,
-    LINE_COLOR_GREEN   = 2,
-    LINE_COLOR_RED     = 3
+    LINE_COLOR_DEFAULT = 1,
+    LINE_COLOR_YELLOW  = 2,
+    LINE_COLOR_GREEN   = 3,
+    LINE_COLOR_RED     = 4
 };
 
 //--------------------------------------------------------------------------------------
