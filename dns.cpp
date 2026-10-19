@@ -9,19 +9,16 @@ DESCRIPTION : Resolves a domain name (example.com) to an IP (384.528.845.259)
 #include "XboxTLS.h"
 
 #include <string.h>
+#include <string>
 #include <iostream>
+#include <map>
 
-struct DnsCacheEntry
-{
-    const char *domain;
-    const char *ip;
-};
+#include "dns.h"
 
-static const DnsCacheEntry dnsCache[] =
-{
-    // DNS fallback entries should use dotted IPv4 strings, e.g. "203.0.113.10".
-    {"example.com", "0.0.0.0"}
-};
+#include "OutputConsole.h"
+
+// can cache different domains
+std::map<std::string, std::string> dnsCache;
 
 /**
  * @brief Resolves a domain name to an IPv4 address string.
@@ -104,20 +101,26 @@ int searchDnsCache(const char *domain, char *ip, int ipSize)
     if (domain == NULL || ip == NULL || ipSize <= 0)
         return -1;
 
-    for (i = 0; i < (int)(sizeof(dnsCache) / sizeof(dnsCache[0])); ++i)
-    {
-        if (strcmp(dnsCache[i].domain, domain) == 0)
-        {
-            const size_t cachedIpLength = strlen(dnsCache[i].ip);
-
-            if ((int)(cachedIpLength + 1) > ipSize)
-                return -1;
-
-            strcpy(ip, dnsCache[i].ip);
-            std::cout << "Resolved " << domain << " to IP " << ip << "\n";
-            return 0;
-        }
+    if (dnsCache.count(domain) <= 0) { // empty cache
+        return -1;
     }
 
-    return -1; // failed to find DNS cache record
+    const std::string ipString = dnsCache[domain];
+
+    if(ipString.length() >= ipSize) {
+        log_printf("ip buffer not large enough\n");
+        return -1;
+    }
+
+    strcpy(ip, ipString.c_str());
+
+    return 0; // failed to find DNS cache record
+}
+
+void writeDnsCache(const char *domain, const char *ip) {
+    dnsCache[domain] = ip;
+}
+
+void clearDnsCache() {
+    dnsCache.clear();
 }

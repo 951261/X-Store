@@ -1169,14 +1169,16 @@ static HttpResponseInfo HTTP_GET_or_POST(
             break;
         }
         char ip[64] = {0};
-        if (!ResolveDNS(domain.c_str(), ip, sizeof(ip)) && searchDnsCache(domain.c_str(), ip, sizeof(ip)) != 0)
+        if (searchDnsCache(domain.c_str(), ip, sizeof(ip)) != 0 && !ResolveDNS(domain.c_str(), ip, sizeof(ip)) )
         {
             response.error_message = "Failed to resolve the HTTPS hostname.";
             break;
         }
+        writeDnsCache(domain.c_str(), ip);
         if (!XboxTLS_Connect(&ctx, ip, domain.c_str(), (int)port))
         {
             response.error_message = "Failed to connect to the HTTPS server.";
+            clearDnsCache();
             break;
         }
         if (XboxTLS_Write(&ctx, request.c_str(), (int)request.size()) != (int)request.size())
@@ -1443,18 +1445,21 @@ int downloadFileHTTPS(const std::string URL, const std::string fileName, char *d
 
         ip[0] = '\0';
 
+        if (searchDnsCache(domain, ip, sizeof(ip)) == 0)
+        {
+            log_printf("Found cached DNS record: %s -> %s\n", domain, ip);
+            break; // found a cached DNS address.
+        }
+
         if (ResolveDNS(domain, ip, sizeof(ip)))
         {
             printFunction("Init: DNS resolved %s -> %s\n", domain, ip);
+            // now write cache
+            writeDnsCache(domain, ip);
             break;
         }
 
         printFunction("Failed to resolve %s\n", domain);
-
-        if (searchDnsCache(domain, ip, sizeof(ip)) == 0)
-        {
-            break; // found a cached DNS address.
-        }
 
         WSACleanup();
         XNetCleanup();
@@ -1475,6 +1480,7 @@ int downloadFileHTTPS(const std::string URL, const std::string fileName, char *d
     if (!XboxTLS_Connect(&ctx, ip, domain, 443))
     {
         log_printf("TLS connection failed\n");
+        clearDnsCache();
         goto downloadFailed;
     }
 
