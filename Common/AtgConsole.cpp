@@ -68,6 +68,8 @@ Console::Console()
 {
     m_Buffer = NULL;
     m_Lines = NULL;
+    m_LineColors = NULL;
+    m_bExpectColorCode = FALSE;
     m_bOutputToDebugChannel = FALSE;
 }
 
@@ -150,6 +152,7 @@ HRESULT Console::Create( LPCSTR strFontFileName, D3DCOLOR colBackColor,
     // Allocate memory to hold the lines
     m_Buffer = new WCHAR[ m_cScreenHeightVirtual * ( m_cScreenWidth + 1 ) ];
     m_Lines = new WCHAR*[ m_cScreenHeightVirtual ];
+    m_LineColors = new D3DCOLOR[ m_cScreenHeightVirtual ];
 
     // Set the line pointers as indexes into the buffer
     for( UINT i = 0; i < m_cScreenHeightVirtual; i++ )
@@ -158,6 +161,7 @@ HRESULT Console::Create( LPCSTR strFontFileName, D3DCOLOR colBackColor,
     }
 
     m_bSuspendFlag = FALSE;
+    m_bExpectColorCode = FALSE;
 
     // Clear the screen
     Clear();
@@ -175,6 +179,12 @@ VOID Console::Clear()
     m_nCurLine = 0;
     m_cCurLineLength = 0;
     ZeroMemory( m_Buffer, m_cScreenHeightVirtual * ( m_cScreenWidth + 1 ) * sizeof( WCHAR ) );
+    if( m_LineColors )
+    {
+        for( UINT i = 0; i < m_cScreenHeightVirtual; i++ )
+            m_LineColors[ i ] = m_colTextColor;
+    }
+    m_bExpectColorCode = FALSE;
 
     Render();
 }
@@ -189,6 +199,8 @@ VOID Console::IncrementLine()
     m_nCurLine = ( m_nCurLine + 1 ) % m_cScreenHeightVirtual;
     m_cCurLineLength = 0;
     ZeroMemory( m_Lines[m_nCurLine], ( m_cScreenWidth + 1 ) * sizeof( WCHAR ) );
+    if( m_LineColors )
+        m_LineColors[ m_nCurLine ] = m_colTextColor;
 }
 
 
@@ -233,6 +245,12 @@ VOID Console::Destroy()
         m_Buffer = NULL;
     }
 
+    if( m_LineColors )
+    {
+        delete[] m_LineColors;
+        m_LineColors = NULL;
+    }
+
     // Destroy the font
     m_Font.Destroy();
 
@@ -275,9 +293,10 @@ VOID Console::Render()
 
     for( UINT nScreenLine = 0; nScreenLine < m_cScreenHeight; nScreenLine++ )
     {
+        D3DCOLOR colLine = ( m_LineColors ? m_LineColors[ nTextLine ] : m_colTextColor );
         m_Font.DrawText( ( FLOAT )( m_cxSafeAreaOffset ),
                          ( FLOAT )( m_cySafeAreaOffset + m_fLineHeight * nScreenLine ),
-                         m_colTextColor, m_Lines[nTextLine] );
+                         colLine, m_Lines[nTextLine] );
 
         nTextLine = ( nTextLine + 1 ) % m_cScreenHeightVirtual;
     }
@@ -315,11 +334,45 @@ VOID Console::Add( CHAR ch )
 
 
 //--------------------------------------------------------------------------------------
+// Name: LineColorFromIndex()
+// Desc: Map a ConsoleLineColor index to a D3DCOLOR (see AtgConsole.h)
+//--------------------------------------------------------------------------------------
+static D3DCOLOR LineColorFromIndex( BYTE index, D3DCOLOR colDefault )
+{
+    switch( index )
+    {
+    case ATG::LINE_COLOR_YELLOW: return 0xFFFFFF00;
+    case ATG::LINE_COLOR_GREEN:  return 0xFF00FF00;
+    case ATG::LINE_COLOR_RED:    return 0xFFFF0000;
+    case ATG::LINE_COLOR_DEFAULT:
+    default:                     return colDefault;
+    }
+}
+
+
+//--------------------------------------------------------------------------------------
 // Name: Add( WCHAR )
 // Desc: Add a wide character to the current line
 //--------------------------------------------------------------------------------------
 VOID Console::Add( WCHAR wch )
 {
+    // A pending color tag: this char is a ConsoleLineColor index, not text
+    if( m_bExpectColorCode )
+    {
+        m_bExpectColorCode = FALSE;
+        if( m_LineColors )
+            m_LineColors[ m_nCurLine ] = LineColorFromIndex( ( BYTE )wch, m_colTextColor );
+        return;
+    }
+
+    // A color tag only opens at column 0, so message text can never
+    // trigger it by accident. Both tag bytes are consumed, never shown.
+    if( wch == ( WCHAR )LINE_COLOR_TAG && m_cCurLineLength == 0 )
+    {
+        m_bExpectColorCode = TRUE;
+        return;
+    }
+
     // If this is a newline, just increment lines and move on
     if( wch == L'\n' )
     {
@@ -397,6 +450,8 @@ VOID Console::FormatV( _In_z_ _Printf_format_string_ LPCSTR strFormat, va_list p
     CHAR* strMessage = ( CHAR* )_malloca( dwStrLen );
     vsprintf_s( strMessage, dwStrLen, strFormat, pArgList );
 
+    m_bExpectColorCode = FALSE;
+
     // Output the string to the console
     for( DWORD i = 0; i < strlen( strMessage ); i++ )
     {
@@ -421,6 +476,8 @@ VOID Console::FormatV( _In_z_ _Printf_format_string_ LPCWSTR wstrFormat, va_list
     DWORD dwStrLen = _vscwprintf( wstrFormat, pArgList ) + 1;    // +1 = null terminator
     WCHAR* strMessage = ( WCHAR* )_malloca( dwStrLen * sizeof( WCHAR ) );
     vswprintf_s( strMessage, dwStrLen, wstrFormat, pArgList );
+
+    m_bExpectColorCode = FALSE;
 
     // Output the string to the console
     for( DWORD i = 0; i < wcslen( strMessage ); i++ )
@@ -449,7 +506,9 @@ VOID Console::Display( LPCSTR strDisplay )
 {
 	if (strDisplay == NULL)
 		return;
-	
+
+    m_bExpectColorCode = FALSE;
+
 	// Output the string to the console
 	for( DWORD i = 0; i < strlen(strDisplay); i++ )
 	{
@@ -470,6 +529,9 @@ VOID Console::Display( LPCWSTR wstrDisplay )
 {
 	if (wstrDisplay == NULL)
 		return;
+
+    m_bExpectColorCode = FALSE;
+
 	// Output the string to the console
 	for( DWORD i = 0; i < wcslen( wstrDisplay ); i++ )
 	{

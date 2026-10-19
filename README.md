@@ -84,6 +84,7 @@ Many thanks to all of the open source projects that made this possible, includin
 * [miniz](https://github.com/richgel999/miniz) to decompress the update data
 * [cJSON](https://github.com/DaveGamble/cJSON) to parse the JSON data required to update the program
 * [Internet Archive](https://archive.org/), without which this entire project would not have been possible
+* Multi-select on the search screen (`X` to mark/unmark, `Y` to queue all marked) implemented by [bvlxtelli](https://github.com/bvlxtelli)
 
 ## Disclaimers
 
