@@ -34,6 +34,8 @@ DESCRIPTION : READ THE FILE NAME (Haha). This is the main file that coordinates 
 #include <string>
 #include "decompressZip.h"
 #include "ia.h"
+#include "iso2god.h"
+#include "store_queue_persist.h"
 
 #define SETTINGS_FILE "game:\\settings.txt"
 
@@ -272,11 +274,22 @@ static std::string getPathNameIndex(std::string str, const int index)
 	}
 }
 
-int getGame(std::string URL, const std::string compressedFile, const std::string isoFolder, const std::string outputFolder, const int downloadType, const std::string fileFormat)
+int getGame(std::string URL, const std::string compressedFile, const std::string isoFolder, const std::string outputFolder, const int downloadType, const std::string fileFormat, bool convertToGod = false, const std::string &gameTitle = "", const std::string &godContentRoot = "")
 {
-	// goto skipDownloadAndExtract;
+	        bool skipDownloadAndExtract = false;
+        if (downloadType != XBLA)
+        {
+                char existingIso[MAX_TEXT_LENGTH];
+                if (findFile(isoFolder.c_str(), existingIso, sizeof(existingIso), ".iso.001") == EXIT_SUCCESS ||
+                    findFile(isoFolder.c_str(), existingIso, sizeof(existingIso), ".iso") == EXIT_SUCCESS)
+                {
+                        dprintf("Found existing ISO (%s), skipping download and extraction...\n", existingIso);
+                        skipDownloadAndExtract = true;
+                }
+        }
 
-	if (DeleteSplitFiles(compressedFile.c_str()) != EXIT_SUCCESS)
+        if (!skipDownloadAndExtract)
+        {if (DeleteSplitFiles(compressedFile.c_str()) != EXIT_SUCCESS)
 	{
 		log_printf("Note: failed to delete all compressed file parts before beginning download\n");
 	}
@@ -288,7 +301,7 @@ int getGame(std::string URL, const std::string compressedFile, const std::string
 		return EXIT_FAILURE;
 	}
 
-	int httpStatus = downloadFileHTTPS(URL, compressedFile, NULL, NULL, true, dprintf, headers);
+	int httpStatus = downloadFileHTTPS(URL, compressedFile, NULL, NULL, true, dprintf, headers, gameTitle.empty() ? NULL : gameTitle.c_str());
 	if (httpStatus == -67) // download canceled
 	{
 		return EXIT_FAILURE;
@@ -331,7 +344,7 @@ int getGame(std::string URL, const std::string compressedFile, const std::string
 		dprintf("Warning: failed to delete all compressed file parts after archive extraction\n");
 	}
 
-	// skipDownloadAndExtract:
+	}
 
 	if (downloadType == XBLA)
 	{
@@ -406,7 +419,12 @@ int getGame(std::string URL, const std::string compressedFile, const std::string
 		dprintf("Warning! Failed to create %s \n", outputFolder.c_str());
 	}
 
-	if (extractIso(temp, outputFolder.c_str()) != 0)
+	if (convertToGod && !godContentRoot.empty())
+	{
+		if (convertPathToGod(temp, godContentRoot.c_str(), gameTitle.c_str()) != EXIT_SUCCESS)
+			return EXIT_FAILURE;
+	}
+	else if (extractIso(temp, outputFolder.c_str()) != 0)
 	{
 		return EXIT_FAILURE;
 	}
@@ -731,13 +749,23 @@ int parseGameData(
 
 	int downloadStatus = -1;
 
-	if (gamesData.downloadType == XBLA)
+	if (gamesData.downloadType == LOCAL_TO_GOD)
+	{
+		downloadStatus = convertPathToGod(gamesData.selectedGameURL, settings.xblaPath, gamesData.selectedGameName);
+		if (downloadStatus == EXIT_SUCCESS && gamesData.deleteSourceAfterGod)
+		{
+			DIR *dCheck = opendir(gamesData.selectedGameURL);
+			if (dCheck) { closedir(dCheck); std::string delDir = std::string(gamesData.selectedGameURL) + "\\"; deleteDirectory(delDir.c_str(), delDir.size()); }
+			else { DeleteSplitFiles(gamesData.selectedGameURL); }
+		}
+	}
+	else if (gamesData.downloadType == XBLA)
 	{
 		downloadStatus = getGame(std::string(gamesData.selectedGameURL), "game:\\tmp.7z.001", gamesData.outputFolder, settings.xblaPath, gamesData.downloadType, std::string(gamesData.fileFormat));
 	}
 	else
 	{
-		downloadStatus = getGame(std::string(gamesData.selectedGameURL), "game:\\tmp.7z.001", "game:\\tmp_output", gamesData.outputFolder, gamesData.downloadType, std::string(gamesData.fileFormat));
+		downloadStatus = getGame(std::string(gamesData.selectedGameURL), "game:\\tmp.7z.001", "game:\\tmp_output", gamesData.outputFolder, gamesData.downloadType, std::string(gamesData.fileFormat), gamesData.convertToGod, std::string(gamesData.selectedGameName), std::string(settings.xblaPath));
 	}
 
 	if (downloadStatus == EXIT_SUCCESS)
@@ -764,7 +792,50 @@ int main()
 		bool allDownloadsSucceeded = true;
 		std::vector<std::string> usedOutputFolders;
 
-		const std::vector<GameData> gamesData = showUI();
+		std::vector<GameData> gamesData;
+		std::vector<bool> completedItems;
+
+		if (LoadSavedStoreQueue(gamesData, completedItems))
+		{
+			size_t doneCount = 0;
+			const char *nextName = "Unknown";
+                        bool nextIsGod = false;
+                        int nextType = XBOX_360;
+                        const char *nextUrl = "";
+                        for (size_t idx = 0; idx < completedItems.size(); ++idx)
+                        {
+                                if (completedItems[idx]) doneCount++;
+                                else if (strcmp(nextName, "Unknown") == 0) {
+                                        nextName = gamesData[idx].selectedGameName;
+                                        nextIsGod = gamesData[idx].convertToGod;
+                                        nextType = gamesData[idx].downloadType;
+                                        nextUrl = gamesData[idx].selectedGameURL;
+                                }
+                        }
+                        char resumeStage[MAX_TEXT_LENGTH];
+                        char foundIso[MAX_TEXT_LENGTH];
+                        if (nextType == LOCAL_TO_GOD) {
+                                _snprintf(resumeStage, sizeof(resumeStage), "Convert local path (%s) to GOD", nextUrl);
+                        } else if (nextType != XBLA &&
+                                   (findFile("game:\\tmp_output", foundIso, sizeof(foundIso), ".iso.001") == EXIT_SUCCESS ||
+                                    findFile("game:\\tmp_output", foundIso, sizeof(foundIso), ".iso") == EXIT_SUCCESS)) {
+                                _snprintf(resumeStage, sizeof(resumeStage), "Use existing ISO (%s) - skip download & extract", foundIso);
+                        } else {
+                                _snprintf(resumeStage, sizeof(resumeStage), "Download archive from Internet Archive & %s", nextIsGod ? "convert to GOD" : "extract");
+                        }
+                        if (!PromptResumeStoreQueue(doneCount, gamesData.size(), nextName, nextIsGod, resumeStage))
+			{
+				remove(STORE_QUEUE_FILE);
+				gamesData.clear();
+				completedItems.clear();
+			}
+		}
+
+		if (gamesData.empty())
+		{
+			gamesData = showUI();
+			completedItems.assign(gamesData.size(), false);
+		}
 
 		if (gamesData.size() <= 0)
 		{
@@ -772,20 +843,29 @@ int main()
 			goto exitFailed;
 		}
 
-		for (std::vector<GameData>::const_iterator game = gamesData.begin(); game != gamesData.end(); ++game)
+		SaveStoreQueueState(gamesData, completedItems);
+
+		for (size_t idx = 0; idx < gamesData.size(); ++idx)
 		{
-			dprintf("Downloading %s\n", game->selectedGameName);
-			int status = parseGameData(*game, usedOutputFolders);
+			if (completedItems[idx]) continue;
+			dprintf("[%u/%u] Processing %s\n", (unsigned int)(idx + 1), (unsigned int)gamesData.size(), gamesData[idx].selectedGameName);
+			int status = parseGameData(gamesData[idx], usedOutputFolders);
 
 			if (status != EXIT_SUCCESS)
 			{
 				allDownloadsSucceeded = false;
 				break;
 			}
+
+			completedItems[idx] = true;
+			SaveStoreQueueState(gamesData, completedItems);
 		}
 
 		if (allDownloadsSucceeded)
+		{
+			remove(STORE_QUEUE_FILE);
 			return EXIT_SUCCESS;
+		}
 
 	exitFailed:
 		dprintf("Something went wrong! Press Y to search again, or B to exit\n");
@@ -822,3 +902,10 @@ int main()
 
 	return EXIT_FAILURE;
 }
+
+
+
+
+
+
+

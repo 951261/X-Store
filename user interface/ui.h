@@ -120,7 +120,8 @@ enum DownloadType {
     XBLA, 
     AUTO_UPDATE,
     DOWNLOAD_QUEUE,
-    IA_LOGIN
+    IA_LOGIN,
+    LOCAL_TO_GOD
 };
 
 struct GameData
@@ -131,6 +132,8 @@ struct GameData
 	char safeGameFolderName[MAX_TEXT_LENGTH];
 	char outputFolder[MAX_TEXT_LENGTH];
     char fileFormat[MAX_TEXT_LENGTH];
+    bool convertToGod;
+    bool deleteSourceAfterGod;
 };
 
 DWORD OpenKeyboardToString(
@@ -148,6 +151,7 @@ bool loadCache(std::string path, char * buffer);
 bool writeCache(std::string path, const char * buffer);
 bool clearCache();
 
+bool isGodFormatEnabled();
 std::vector<GameData> showUI();
 
 #endif
