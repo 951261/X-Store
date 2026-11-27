@@ -28,6 +28,6 @@ HttpResponseInfo HTTP_GET(
 
 /// @brief downloads file over https using http 1.1 and tls 1.2
 int downloadFileHTTPS(const std::string URL, const std::string fileName, char *dataBuffer, unsigned long long *outputBufferSize, bool downloadIntoFile, void printFunction(const char *_format, ...),
-                        std::map<std::string, std::string> headers = std::map<std::string, std::string>());
+                        std::map<std::string, std::string> headers = std::map<std::string, std::string>(), const char *activeTitle = NULL);
 
 #endif

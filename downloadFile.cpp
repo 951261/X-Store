@@ -52,6 +52,7 @@ DESCRIPTION : Downloads a file. If the file is larger than 4GB, it splits it int
 
 #include "XboxTLS.h"
 #include "downloadFile.h"
+static const char *s_activeDownloadTitle = NULL;
 #include "dns.h"
 #include "parsing.h"
 #include "OutputConsole.h"
@@ -851,6 +852,11 @@ int DumpResponse(XboxTLSContext *ctx,
                     lastBytesWritten = tempTotalWritten;
                     printFunction("Downloaded %s out of %s, Speed: %s/s, Average: %s/s, Time %llu s, Time Remaining %llu:%llu:%llu s\n",
                                   humanReadableDownloadedBytes, humanReadableTotalBytes, humanReadableSpeed, humanReadableAverageSpeed, (endTime - beginTime) / (unsigned long long)1000, timeRemaining / (unsigned long long)3600, (timeRemaining / (unsigned long long)60) % (unsigned long long)60, timeRemaining % (unsigned long long)60);
+                    static unsigned int statusTickCount = 0;
+                    if (s_activeDownloadTitle && *s_activeDownloadTitle && (++statusTickCount % 5 == 0))
+                    {
+                        printFunction("[Downloading: %s]\n", s_activeDownloadTitle);
+                    }
                 }
             }
         }
@@ -1354,8 +1360,9 @@ HttpResponseInfo HTTP_POST(
 }
 
 int downloadFileHTTPS(const std::string URL, const std::string fileName, char *dataBuffer, unsigned long long *outputBufferSize, bool downloadIntoFile, void printFunction(const char *_format, ...),
-                        std::map<std::string, std::string> headers)
+                        std::map<std::string, std::string> headers, const char *activeTitle)
 {
+    s_activeDownloadTitle = activeTitle;
     char *domain;
     char *path;
 

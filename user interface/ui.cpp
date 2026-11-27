@@ -51,10 +51,13 @@ static const char *GetDownloadTypeName(enum DownloadType type)
         return "Update X-Store";
 
     case DOWNLOAD_QUEUE:
-        return "Download Queue";
+        return "Process Queue";
 
     case IA_LOGIN:
         return "Re-login to the Internet Archive";
+
+    case LOCAL_TO_GOD:
+        return "Convert Local Game to GOD";
 
     default:
         return "Unknown";
@@ -82,6 +85,9 @@ static enum DownloadType GetDownloadTypeFromIndex(int index)
 
     case 5:
         return IA_LOGIN;
+
+    case 6:
+        return LOCAL_TO_GOD;
 
     default:
         return XBLA;
@@ -194,6 +200,8 @@ static void InitializeMenuInput(
     }
 }
 
+#include "god_ui.h"
+
 static void RenderDownloadTypeMenu(int selected, const std::vector<GameData> &gamesInfo)
 {
     char outputTextBuffer[TEXTBUFFER_SIZE] = " ";
@@ -206,7 +214,7 @@ static void RenderDownloadTypeMenu(int selected, const std::vector<GameData> &ga
         enum DownloadType type = GetDownloadTypeFromIndex(i);
         if (type == DOWNLOAD_QUEUE)
         {
-            _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "%c Download all queued items%s\n",
+            _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "%c \x81" "Process all queued items\x9D" "%s\n",
                       i == selected ? '>' : ' ',
                       gamesInfo.empty() ? " (queue is empty)" : "");
         }
@@ -239,7 +247,7 @@ static void RenderDownloadTypeMenu(int selected, const std::vector<GameData> &ga
         }
     }
 
-    _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "\nA: Select   B: Cancel   D-Pad/Left Stick: Move\n");
+    _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "\nOutput Format: [%s] \x90" "(Press Y to toggle)\x9D" "\n\x81" "A: Select\x9D" "   \x90" "Y: Toggle GOD/XEX\x9D" "   \x8D" "B: Cancel\x9D" "\n", isGodFormatEnabled() ? "GOD (Games on Demand)" : "XEX (Extracted Files)");
 
     dprintf("%s", outputTextBuffer);
 }
@@ -276,6 +284,8 @@ static enum DownloadType ShowDownloadTypeMenu(const std::vector<GameData> &games
             if (selectedType != DOWNLOAD_QUEUE || !gamesInfo.empty())
                 return selectedType;
         }
+
+        if (pressed & XINPUT_GAMEPAD_Y) { setGodFormatEnabled(!isGodFormatEnabled()); RenderDownloadTypeMenu(selected, gamesInfo); }
 
         if (pressed & XINPUT_GAMEPAD_B)
             return (enum DownloadType)0;
@@ -391,7 +401,7 @@ static void RenderSearchResults(const std::vector<GameEntry> &list, int selected
                   list[index].name.c_str());
     }
 
-    _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "\nX: Mark/Unmark   Y: Queue%s   A: Download Now   B: Back\nD-Pad/Left Stick: Move   LB/RB: Page\n",
+    _snprintf(outputTextBuffer + strlen(outputTextBuffer), TEXTBUFFER_SIZE - strlen(outputTextBuffer), "\n\x8F" "X: Mark/Unmark\x9D" "   Y: Queue%s   A: Download Now   B: Back\nD-Pad/Left Stick: Move   LB/RB: Page\n",
               markedCount > 0 ? " Marked" : "");
 
     dprintf("%s", outputTextBuffer); // draw in one go to prevent flickering
@@ -855,6 +865,19 @@ main_UI_loop_start:
         if (downloadType == DOWNLOAD_QUEUE)
             return gamesInfo;
 
+        if (downloadType == LOCAL_TO_GOD)
+        {
+            GameData localGame;
+            if (ShowLocalGodBrowser(localGame))
+            {
+                gamesInfo.push_back(localGame);
+                ClearConsole();
+                dprintf("Queued local GOD conversion: %s\n", localGame.selectedGameName);
+                Sleep(700);
+            }
+            continue;
+        }
+
         if (downloadType == AUTO_UPDATE)
         {
             clearCache();
@@ -963,6 +986,7 @@ main_UI_loop_start:
             GameData gameData;
             ZeroMemory(&gameData, sizeof(gameData));
             gameData.downloadType = downloadType;
+            gameData.convertToGod = isGodFormatEnabled();
             strncpy(gameData.fileFormat, list[selected].fileFormat.c_str(), sizeof(gameData.fileFormat) - 1);
             strncpy(gameData.selectedGameName, list[selected].name.c_str(), sizeof(gameData.selectedGameName) - 1);
             strncpy(gameData.selectedGameURL, finalDownloadURL.c_str(), sizeof(gameData.selectedGameURL) - 1);
@@ -994,3 +1018,4 @@ main_UI_loop_start:
         Sleep(500);
     }
 }
+
