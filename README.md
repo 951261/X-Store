@@ -1,4 +1,4 @@
-# X Store
+﻿# X Store
 ### The first open source homebrew app that can download Xbox, Xbox 360 and XBLA games/DLCs/Title Updates directly on the console!
 
 ### I am sorry
@@ -107,3 +107,4 @@ Many thanks to all of the open source projects that made this possible, includin
 * Update user-agent to better identify the program
 
 Pull Requests are welcome
+

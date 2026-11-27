@@ -315,6 +315,7 @@
     <ClCompile Include="dns.cpp" />
     <ClCompile Include="downloadFile.cpp" />
     <ClCompile Include="ia.cpp" />
+    <ClCompile Include="iso2god.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="OutputConsole.cpp" />
     <ClCompile Include="parsing.cpp" />

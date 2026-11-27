@@ -1,3 +1,4 @@
+#include <vector>
 //--------------------------------------------------------------------------------------
 // AtgConsole.cpp
 //
@@ -563,3 +564,7 @@ VOID Console::Display( LPCWSTR wstrDisplay )
 
 }
 ;  // namespace
+
+
+
+
